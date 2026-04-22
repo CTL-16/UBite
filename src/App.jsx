@@ -174,11 +174,11 @@ const UBiteApp = () => {
   // --- APP STATE ---
   const [isShopOpen, setIsShopOpen] = useState(true);
   const [isShopLoaded, setIsShopLoaded] = useState(false);
-  const [view, setView] = useState('loading'); // Starts in loading state
+  const [view, setView] = useState('loading');
   const [adminTab, setAdminTab] = useState('live'); 
   const [sellerTab, setSellerTab] = useState('live'); 
   const [toastMessage, setToastMessage] = useState('');
-  const [user, setUser] = useState(null); // Firebase anon auth user
+  const [user, setUser] = useState(null);
   
   // Custom User Auth State
   const [currentUser, setCurrentUser] = useState(null);
@@ -215,7 +215,7 @@ const UBiteApp = () => {
   const [mcdReceipt, setMcdReceipt] = useState(null);
   const [paymentReceipt, setPaymentReceipt] = useState(null);
 
-  // --- FIREBASE SYNC & INITIALIZATION ---
+  // --- FIREBASE SYNC ---
   useEffect(() => {
     if (!auth) return;
     const initAuth = async () => {
@@ -225,16 +225,14 @@ const UBiteApp = () => {
         } else {
           await signInAnonymously(auth);
         }
-      } catch (e) {
-        console.error("Firebase Auth Error:", e);
-      }
+      } catch (e) { console.error("Firebase Auth Error:", e); }
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
 
-  // Check Local Storage for Login Session on Boot
+  // Check Session
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('ubite_user');
@@ -242,17 +240,16 @@ const UBiteApp = () => {
         const parsedUser = JSON.parse(storedUser);
         setCurrentUser(parsedUser);
         setUserDetails({ nickname: parsedUser.username, whatsapp: parsedUser.phone });
-        setView('welcome');
-      } else {
+        if (view === 'loading') setView('welcome');
+      } else if (view === 'loading') {
         setView('auth');
       }
     }
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     if (!user || !db) return;
     
-    // Sync Orders
     const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders');
     const unsubscribeOrders = onSnapshot(ordersRef, 
       (snapshot) => {
@@ -261,12 +258,9 @@ const UBiteApp = () => {
         fetchedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
         setOrders(fetchedOrders);
       },
-      (error) => {
-        console.error("Firestore Orders Listener Error:", error);
-      }
+      (error) => console.error("Firestore Orders Error:", error)
     );
 
-    // Sync Shop Status globally
     const settingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'settings');
     const unsubscribeSettings = onSnapshot(settingsRef, 
       (snapshot) => {
@@ -281,15 +275,12 @@ const UBiteApp = () => {
         setIsShopLoaded(true);
       }, 
       (error) => {
-        console.error("Firestore Settings Listener Error:", error);
+        console.error("Settings Listener Error:", error);
         setIsShopLoaded(true);
       }
     );
 
-    return () => {
-      unsubscribeOrders();
-      unsubscribeSettings();
-    };
+    return () => { unsubscribeOrders(); unsubscribeSettings(); };
   }, [user]);
 
   useEffect(() => {
@@ -301,8 +292,13 @@ const UBiteApp = () => {
   useEffect(() => {
     const handleHash = () => {
       const h = window.location.hash;
-      if (h === '#admin') { setView('admin'); setAdminTab('live'); }
-      else if (h === '#seller') { setView('seller'); setSellerTab('live'); }
+      if (h === '#CTL0516') { 
+        setView('admin'); 
+        setAdminTab('live'); 
+      } else if (h === '#seller') { 
+        setShowSecretModal(true); 
+        window.location.hash = ''; // Clear hash so it doesn't loop
+      }
     };
     handleHash();
     window.addEventListener('hashchange', handleHash);
@@ -312,7 +308,6 @@ const UBiteApp = () => {
   // --- LOGIC & CUSTOM AUTH ---
   const handleSignUp = async () => {
     if (!authUsername || !authPassword || !authPhone) return showToast("Please fill all fields");
-    
     const cleanUsername = authUsername.trim();
     const userData = { username: cleanUsername, phone: authPhone, password: authPassword };
     
@@ -328,7 +323,6 @@ const UBiteApp = () => {
         localUsers[cleanUsername.toLowerCase()] = userData;
         localStorage.setItem('ubite_users_db', JSON.stringify(localUsers));
       }
-
       setCurrentUser(userData);
       setUserDetails({ nickname: userData.username, whatsapp: userData.phone });
       localStorage.setItem('ubite_user', JSON.stringify(userData));
@@ -349,13 +343,8 @@ const UBiteApp = () => {
       if (db && user) {
         const userRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_users'), cleanUsername.toLowerCase());
         const existing = await getDoc(userRef);
-        
-        if (!existing.exists()) {
-          return showToast("User not found. Please Sign Up first.");
-        }
-        if (existing.data().password !== authPassword) {
-          return showToast("Incorrect password. Please try again.");
-        }
+        if (!existing.exists()) return showToast("User not found. Please Sign Up first.");
+        if (existing.data().password !== authPassword) return showToast("Incorrect password.");
         
         const userData = existing.data();
         setCurrentUser(userData);
@@ -367,13 +356,8 @@ const UBiteApp = () => {
       } else {
         const localUsers = JSON.parse(localStorage.getItem('ubite_users_db') || '{}');
         const existingUser = localUsers[cleanUsername.toLowerCase()];
-        
-        if (!existingUser) {
-          return showToast("User not found. Please Sign Up first.");
-        }
-        if (existingUser.password !== authPassword) {
-          return showToast("Incorrect password. Please try again.");
-        }
+        if (!existingUser) return showToast("User not found. Please Sign Up first.");
+        if (existingUser.password !== authPassword) return showToast("Incorrect password.");
         
         setCurrentUser(existingUser);
         setUserDetails({ nickname: existingUser.username, whatsapp: existingUser.phone });
@@ -448,8 +432,6 @@ const UBiteApp = () => {
     const foodTotal = restaurant === 'sushi' ? calculateSushiFoodTotal() : 0; 
     const now = new Date();
     const orderId = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(orders.length + 1).padStart(2,'0')}`;
-
-    // Ensure the order is tied to the logged-in user
     const finalUserDetails = currentUser ? { nickname: currentUser.username, whatsapp: currentUser.phone } : userDetails;
 
     const newOrder = {
@@ -470,7 +452,6 @@ const UBiteApp = () => {
       showToast("Order submitted successfully!");
       notifyPhone(`🚨 NEW ORDER: #${orderId}\nCustomer: ${finalUserDetails.nickname}\nTotal: RM${newOrder.total.toFixed(2)}`);
     } catch (error) {
-      console.error("Checkout error:", error);
       showToast("Failed to submit order. Check connection.");
     }
   };
@@ -481,8 +462,7 @@ const UBiteApp = () => {
       else { setOrders(orders.map(o => o.id === id ? { ...o, status: s } : o)); }
       showToast(`Order #${id} marked as ${s.toUpperCase()}`);
     } catch (error) {
-      console.error("Error updating order:", error);
-      showToast("Failed to update order. Check connection.");
+      showToast("Failed to update order.");
     }
   };
 
@@ -493,8 +473,7 @@ const UBiteApp = () => {
       showToast(`Admin notified: Order is ${s.toUpperCase()}`);
       notifyPhone(`🍣 SUSHI TRUCK UPDATE\nOrder #${id} is now ${s.toUpperCase()}!`);
     } catch (error) {
-      console.error("Error updating seller status:", error);
-      showToast("Failed to update status. Check connection.");
+      showToast("Failed to update seller status.");
     }
   };
 
@@ -505,7 +484,6 @@ const UBiteApp = () => {
       else { setIsShopOpen(next); }
       showToast(next ? "Shop OPENED" : "Shop CLOSED");
     } catch (error) {
-      console.error("Error toggling shop status:", error);
       showToast("Failed to change shop status.");
     }
   };
@@ -522,52 +500,18 @@ const UBiteApp = () => {
       <p className="text-red-600 font-bold mb-8 text-sm">Sign in to track your orders</p>
       
       <div className="w-full space-y-4">
-        <input 
-          type="text" 
-          placeholder="Username" 
-          value={authUsername} 
-          onChange={e => setAuthUsername(e.target.value)} 
-          className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"
-        />
-        {authMode === 'signup' && (
-          <input 
-            type="tel" 
-            placeholder="WhatsApp Number" 
-            value={authPhone} 
-            onChange={e => setAuthPhone(e.target.value)} 
-            className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"
-          />
-        )}
-        <input 
-          type="password" 
-          placeholder="Password" 
-          value={authPassword} 
-          onChange={e => setAuthPassword(e.target.value)} 
-          className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"
-        />
-        
-        <button 
-          onClick={authMode === 'login' ? handleLogin : handleSignUp} 
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg transition active:scale-95"
-        >
-          {authMode === 'login' ? 'Login' : 'Create Account'}
-        </button>
+        <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
+        {authMode === 'signup' && <input type="tel" placeholder="WhatsApp Number" value={authPhone} onChange={e => setAuthPhone(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>}
+        <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
+        <button onClick={authMode === 'login' ? handleLogin : handleSignUp} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg transition active:scale-95">{authMode === 'login' ? 'Login' : 'Create Account'}</button>
       </div>
 
       <p className="mt-6 text-sm text-gray-500 font-medium">
         {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-        <span 
-          onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthUsername(''); setAuthPassword(''); setAuthPhone(''); }} 
-          className="text-red-600 font-bold cursor-pointer"
-        >
-          {authMode === 'login' ? "Sign Up" : "Login"}
-        </span>
+        <span onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthUsername(''); setAuthPassword(''); setAuthPhone(''); }} className="text-red-600 font-bold cursor-pointer">{authMode === 'login' ? "Sign Up" : "Login"}</span>
       </p>
 
-      {/* Subtle Staff Link for Testing */}
-      <div className="absolute bottom-6 text-xs text-gray-400 cursor-pointer hover:text-red-500 transition" onClick={() => setShowSecretModal(true)}>
-        Staff Login
-      </div>
+      <div className="absolute bottom-6 text-xs text-gray-400 cursor-pointer hover:text-red-500 transition" onClick={() => setShowSecretModal(true)}>Staff Login</div>
     </div>
   );
 
@@ -579,26 +523,18 @@ const UBiteApp = () => {
           <button onClick={handleLogout} className="flex items-center text-red-500 hover:text-red-700"><LogOut size={16} className="mr-1"/> Logout</button>
         </div>
       )}
-      
       <div className="bg-red-600 p-4 rounded-full text-white shadow-lg"><Bike size={64} /></div>
       <h1 className="text-4xl font-extrabold text-gray-900 cursor-pointer select-none" onClick={() => secretTap >= 4 ? (setShowSecretModal(true), setSecretTap(0)) : setSecretTap(s => s + 1)}>UBite</h1>
-      <p className="text-xl font-bold text-red-600">U order, I bike, U Bite</p>
-      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-        <b>U</b>niversity <b>B</b>ased <b>I</b>nnovative <b>T</b>asty <b>E</b>xpress
-      </p>
+      <p className="text-xl font-bold text-red-600 italic">"U order, I bike, U Bite"</p>
+      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider"><b>U</b>niversity <b>B</b>ased <b>I</b>nnovative <b>T</b>asty <b>E</b>xpress</p>
 
-      <div className="w-full flex space-x-3 mt-4">
-        {/* Track Orders Button for logged in users */}
-        {currentUser && (
-          <button onClick={() => setView('user_orders')} className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center">
-            <ListOrdered size={18} className="mr-2" /> Track Orders
-          </button>
-        )}
-      </div>
+      {currentUser && (
+        <button onClick={() => setView('user_orders')} className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center"><ListOrdered size={18} className="mr-2" /> Track My Orders</button>
+      )}
 
-      <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200 text-left w-full">
-        <h3 className="font-bold text-lg mb-2 flex items-center"><Info className="mr-2 text-yellow-600" size={20}/> Our Story</h3>
-        <p className="text-gray-700 text-sm leading-relaxed">U.B.I.T.E was born to make your life easier. We don't just deliver food; we pedal to save your time so you can focus on studies and rest.</p>
+      <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200 text-left w-full mt-4">
+        <h3 className="font-bold text-lg mb-2 flex items-center text-gray-800"><Info className="mr-2 text-yellow-600" size={20}/> Our Story</h3>
+        <p className="text-gray-700 text-sm leading-relaxed">U.B.I.T.E was born to make your life easier. We pedal to save your time so you can focus on studies and rest.</p>
       </div>
 
       {!isShopLoaded ? (
@@ -609,35 +545,10 @@ const UBiteApp = () => {
         <button onClick={() => setView('details')} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95 text-lg">Start Order</button>
       )}
 
-      {/* Subtle Staff Link for Testing */}
+      {/* Subtle Staff Link */}
       <div className="text-xs text-gray-400 cursor-pointer hover:text-red-500 transition mt-6" onClick={() => setShowSecretModal(true)}>
-        Staff Login (Testing)
+        Staff Login
       </div>
-    </div>
-  );
-
-  const renderUserDetails = () => (
-    <div className="p-6 space-y-6 animate-fadeIn">
-      <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Confirm Information</h2>
-      <p className="text-sm text-gray-500">Please confirm your details for delivery.</p>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1">Nickname</label>
-          <div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 ring-red-500">
-            <span className="p-3 bg-gray-50 text-gray-500"><User size={18}/></span>
-            <input type="text" className="w-full p-3 outline-none bg-gray-50" value={userDetails.nickname} readOnly={!!currentUser} onChange={(e) => !currentUser && setUserDetails({...userDetails, nickname: e.target.value})}/>
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1">WhatsApp Number</label>
-          <div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 ring-red-500">
-            <span className="p-3 bg-gray-50 text-gray-500"><Phone size={18}/></span>
-            <input type="tel" className="w-full p-3 outline-none bg-gray-50" value={userDetails.whatsapp} readOnly={!!currentUser} onChange={(e) => !currentUser && setUserDetails({...userDetails, whatsapp: e.target.value})}/>
-          </div>
-        </div>
-      </div>
-      <button disabled={!userDetails.nickname || !userDetails.whatsapp} onClick={() => setView('restaurant')} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-md mt-6 disabled:opacity-50 transition">Continue to Menu</button>
-      <button onClick={() => setView('welcome')} className="w-full py-3 text-gray-500 font-semibold underline">Back</button>
     </div>
   );
 
@@ -647,22 +558,16 @@ const UBiteApp = () => {
       <div className="p-6 animate-fadeIn bg-gray-50 min-h-screen pb-24">
         <h2 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6 flex items-center"><ListOrdered className="mr-2"/> My Orders</h2>
         <div className="space-y-4">
-          {myOrders.length === 0 ? <p className="text-center text-gray-500 py-10">You haven't made any orders yet.</p> : myOrders.map(order => (
+          {myOrders.length === 0 ? <p className="text-center text-gray-500 py-10">No orders yet.</p> : myOrders.map(order => (
             <div key={order.id} onClick={() => { setActiveUserOrderId(order.id); setView('status'); }} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition">
               <div className="flex justify-between items-start mb-2 border-b border-gray-100 pb-2">
                 <div>
                   <h3 className="font-bold text-lg text-gray-800">#{order.id}</h3>
                   <p className="text-xs text-gray-500">{new Date(order.date).toLocaleDateString()} • {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                 </div>
-                <span className={`text-xs font-bold px-2 py-1 rounded uppercase tracking-wide ${order.status === 'arrived' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                  {order.status}
-                </span>
+                <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${order.status === 'arrived' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{order.status}</span>
               </div>
-              <div className="text-sm text-gray-600 flex justify-between">
-                <span>{order.restaurant.toUpperCase()}</span>
-                <span className="font-bold text-gray-900">RM {order.total.toFixed(2)}</span>
-              </div>
-              <p className="text-xs text-red-500 font-bold mt-2 text-right">Tap to track ➔</p>
+              <div className="text-sm text-gray-600 flex justify-between"><span>{order.restaurant.toUpperCase()}</span><span className="font-bold text-gray-900">RM {order.total.toFixed(2)}</span></div>
             </div>
           ))}
         </div>
@@ -684,41 +589,32 @@ const UBiteApp = () => {
           <div><h3 className="text-xl font-bold text-gray-800">Sushi Truck</h3><p className="text-xs text-gray-500 mt-1">No.1 Sushi Truck in KL.</p></div>
         </button>
       </div>
-      <button onClick={() => setView('details')} className="w-full py-3 text-gray-500 font-semibold underline">Back</button>
+      <button onClick={() => setView('welcome')} className="w-full py-3 text-gray-500 font-semibold underline">Back</button>
     </div>
   );
 
   const renderMcdFlow = () => (
     <div className="p-6 space-y-6 animate-fadeIn">
-      <h2 className="text-2xl font-bold text-yellow-600 border-b pb-2">McDonald's Order</h2>
-      <div className="bg-red-50 border border-red-200 p-3 rounded-lg flex items-start">
-        <ShieldAlert className="text-red-600 mr-3 mt-1 shrink-0" size={20} />
-        <p className="text-sm text-red-800 font-semibold">IMPORTANT: Sundae cones are NOT available for UBite delivery.</p>
-      </div>
+      <h2 className="text-2xl font-bold text-yellow-600 border-b pb-2 flex items-center">McDonald's Order</h2>
+      <div className="bg-red-50 border border-red-200 p-3 rounded-lg flex items-start"><ShieldAlert className="text-red-600 mr-3 mt-1 shrink-0" size={20} /><p className="text-sm text-red-800 font-semibold">IMPORTANT: Sundae cones are NOT available for UBite delivery.</p></div>
       <div className="space-y-3">
         <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition ${mcdOrderType === 'self' ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-200' : 'bg-white border-gray-300'}`}>
-          <input type="radio" checked={mcdOrderType === 'self'} onChange={() => setMcdOrderType('self')} />
-          <div className="ml-3"><span className="block font-bold">I will order on the McD App</span><span className="block text-xs text-gray-500">Only pay delivery fee to UBite.</span></div>
+          <input type="radio" checked={mcdOrderType === 'self'} onChange={() => setMcdOrderType('self')} /><div className="ml-3"><span className="block font-bold">I will order on the McD App</span></div>
         </label>
         <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition ${mcdOrderType === 'help' ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-200' : 'bg-white border-gray-300'}`}>
-          <input type="radio" checked={mcdOrderType === 'help'} onChange={() => setMcdOrderType('help')} />
-          <div className="ml-3"><span className="block font-bold">Please order for me</span><span className="block text-xs text-gray-500">List your items, we'll send the receipt later.</span></div>
+          <input type="radio" checked={mcdOrderType === 'help'} onChange={() => setMcdOrderType('help')} /><div className="ml-3"><span className="block font-bold">Please order for me</span></div>
         </label>
       </div>
       <div className="bg-white p-4 rounded-xl border space-y-4">
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-1">Number of Items</label>
-          <div className="flex items-center border rounded-lg w-max overflow-hidden">
-            <button onClick={() => setMcdItemCount(Math.max(1, mcdItemCount - 1))} className="px-4 py-2 bg-gray-100 font-bold">-</button>
-            <span className="px-6 py-2 font-bold">{mcdItemCount}</span>
-            <button onClick={() => setMcdItemCount(mcdItemCount + 1)} className="px-4 py-2 bg-gray-100 font-bold">+</button>
-          </div>
+          <div className="flex items-center border rounded-lg w-max overflow-hidden"><button onClick={() => setMcdItemCount(Math.max(1, mcdItemCount - 1))} className="px-4 py-2 bg-gray-100 font-bold">-</button><span className="px-6 py-2 font-bold">{mcdItemCount}</span><button onClick={() => setMcdItemCount(mcdItemCount + 1)} className="px-4 py-2 bg-gray-100 font-bold">+</button></div>
         </div>
         {mcdOrderType === 'self' ? (
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">Upload McD Order Screenshot</label>
             <input type="file" id="mcd-upload" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setMcdReceipt)} />
-            <label htmlFor="mcd-upload" className="border-2 border-dashed rounded-xl p-6 text-center bg-gray-50 cursor-pointer block hover:bg-gray-100 transition">
+            <label htmlFor="mcd-upload" className="border-2 border-dashed rounded-xl p-6 text-center bg-gray-50 cursor-pointer block hover:bg-gray-100">
               {mcdReceipt ? <div className="text-green-600 font-bold"><CheckCircle className="mx-auto mb-1"/> Screenshot Attached</div> : <div className="text-gray-400"><Upload className="mx-auto mb-1"/> Tap to upload screenshot</div>}
               <p className="text-xs text-red-500 mt-2 font-semibold">*Screenshot must show the collection Number</p>
             </label>
@@ -827,12 +723,18 @@ const UBiteApp = () => {
             <h3 className="font-bold text-yellow-800 mb-2">Have you ordered on the McD App?</h3>
             <p className="text-xs text-yellow-700 mb-4">Click the button below ONLY when your McDonald's app says the food is ready for pickup.</p>
             <button 
-              onClick={() => {
+              disabled={current.mcdNotified}
+              onClick={async () => {
                  showToast("Notification sent! Rider is heading to the counter.");
                  notifyPhone(`🏃 URGENT:\nMcD User ${current.userDetails.nickname} says food is ready for pickup!`);
+                 if (db && user) {
+                   await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(current.id)), { mcdNotified: true });
+                 } else {
+                   setOrders(orders.map(o => o.id === current.id ? { ...o, mcdNotified: true } : o));
+                 }
               }}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-extrabold py-4 px-2 rounded-xl shadow transition transform active:scale-95 flex justify-center items-center"
-            ><Bike className="mr-2" /> Notify Rider: Food is Ready!</button>
+              className={`w-full ${current.mcdNotified ? 'bg-gray-400 cursor-not-allowed text-gray-700' : 'bg-yellow-500 hover:bg-yellow-600 text-black active:scale-95'} font-extrabold py-4 px-2 rounded-xl shadow transition transform flex justify-center items-center`}
+            ><Bike className="mr-2" /> {current.mcdNotified ? 'Rider Notified!' : 'Notify Rider: Food is Ready!'}</button>
           </div>
         )}
 
@@ -855,7 +757,6 @@ const UBiteApp = () => {
             <button onClick={() => (window.location.hash='', setView('welcome'))} className="text-xs bg-gray-700 px-3 py-1 rounded font-bold">Exit</button>
           </div>
         </div>
-        {!db && <div className="bg-red-900 text-red-100 p-3 rounded-lg mb-6 text-[10px] font-bold border border-red-500">⚠️ OFFLINE MODE: Enter Firebase Keys in code.</div>}
         <div className="flex bg-gray-800 p-1 rounded-xl mb-6">
           <button onClick={() => setAdminTab('live')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${adminTab === 'live' ? 'bg-red-600' : 'text-gray-400'}`}>Live</button>
           <button onClick={() => setAdminTab('history')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${adminTab === 'history' ? 'bg-red-600' : 'text-gray-400'}`}>History</button>
@@ -880,107 +781,12 @@ const UBiteApp = () => {
                 <div className="grid grid-cols-1 gap-2 pt-3 border-t border-gray-700">
                   {o.status === 'pending' && <button onClick={() => updateOrderStatus(o.id, 'received')} className="w-full bg-blue-600 py-3 rounded-lg font-bold">Receive Order</button>}
                   {o.status === 'received' && <button onClick={() => updateOrderStatus(o.id, 'delivering')} className="w-full bg-purple-600 py-3 rounded-lg font-bold">Start Delivery</button>}
-                  {o.status === 'delivering' && <button onClick={() => updateOrderStatus(o.id, 'arrived')} className="w-full bg-green-600 py-3 rounded-lg font-bold">Complete (Arrived)</button>}
+                  {o.status === 'delivering' && <button onClick={() => updateOrderStatus(o.id, 'arrived')} className="w-full bg-green-600 py-3 rounded-lg font-bold shadow-[0_0_10px_rgba(34,197,94,0.3)]">Complete (Arrived)</button>}
                 </div>
               </div>
             ))}
           </div>
         )}
-        {adminTab === 'history' && (
-          <div className="space-y-3 relative">
-            <h3 className="font-bold text-gray-400 text-sm mb-2">Completed Orders</h3>
-            {pastOrders.length === 0 ? <div className="text-center text-gray-500 py-10">No completed orders yet.</div> : (
-              pastOrders.map(order => (
-                <div key={order.id} onClick={() => setSelectedHistoryOrder(order)} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center opacity-80 cursor-pointer hover:bg-gray-700 transition">
-                  <div>
-                    <p className="font-bold text-yellow-400">#{order.id} <span className="text-gray-400 text-xs font-normal ml-1">({order.restaurant.toUpperCase()})</span></p>
-                    <p className="text-xs text-gray-500 mt-1">{new Date(order.date).toLocaleDateString()} • {order.userDetails.nickname}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-green-400">RM {order.total.toFixed(2)}</p>
-                    <p className="text-[10px] text-gray-500 uppercase">View Details</p>
-                  </div>
-                </div>
-              ))
-            )}
-            
-            {selectedHistoryOrder && (
-               <div className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center p-4">
-                  <div className="bg-gray-800 p-6 rounded-xl w-full max-w-sm border border-gray-600 relative shadow-2xl">
-                     <button onClick={() => setSelectedHistoryOrder(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-700 p-1 rounded-full"><X size={20}/></button>
-                     <h3 className="text-xl font-bold text-white mb-4">Order #{selectedHistoryOrder.id}</h3>
-                     <div className="space-y-2 text-sm text-gray-300">
-                        <p><b>Date:</b> {new Date(selectedHistoryOrder.date).toLocaleString([], {year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
-                        <p><b>Customer:</b> {selectedHistoryOrder.userDetails.nickname} ({selectedHistoryOrder.userDetails.whatsapp})</p>
-                        <p><b>Restaurant:</b> {selectedHistoryOrder.restaurant.toUpperCase()}</p>
-                     </div>
-                     <div className="bg-gray-900 p-3 rounded mt-4 mb-4 border border-gray-700">
-                       <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Order Summary</p>
-                       {selectedHistoryOrder.restaurant === 'mcd' ? (
-                          <p className="text-sm text-white">{selectedHistoryOrder.mcdOrderType === 'help' ? selectedHistoryOrder.mcdOrderText : 'User self-ordered on McD App.'}</p>
-                       ) : (
-                          <ul className="text-sm space-y-1 text-white">
-                            {selectedHistoryOrder.sushiOrderDetails && Object.entries(selectedHistoryOrder.sushiOrderDetails).map(([id, qty]) => {
-                               const item = SUSHI_MENU.find(i => i.id === id);
-                               return <li key={id} className="flex justify-between"><span>{item?.name}</span> <span className="text-red-400 font-bold">x{qty}</span></li>
-                            })}
-                          </ul>
-                       )}
-                     </div>
-                     <div className="flex justify-between border-t border-gray-600 pt-3 flex-col space-y-1">
-                        <div className="flex justify-between text-sm"><span className="text-gray-400">Food Total</span><span className="font-bold text-white">RM {(selectedHistoryOrder.foodTotal || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between text-sm"><span className="text-gray-400">Delivery Fee</span><span className="font-bold text-white">RM {(selectedHistoryOrder.deliveryFee || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between text-base mt-2 pt-2 border-t border-gray-700"><span className="text-gray-200 font-bold">Grand Total</span><span className="text-lg font-bold text-green-400">RM {selectedHistoryOrder.total.toFixed(2)}</span></div>
-                     </div>
-                     {(selectedHistoryOrder.paymentReceipt || selectedHistoryOrder.mcdReceipt) && (
-                        <div className="mt-4 pt-4 border-t border-gray-700 flex space-x-2">
-                          {selectedHistoryOrder.paymentReceipt && (
-                            <a href={selectedHistoryOrder.paymentReceipt} download={`Payment_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded transition">
-                              <Download size={14} className="mr-1"/> Download Payment
-                            </a>
-                          )}
-                          {selectedHistoryOrder.mcdReceipt && (
-                            <a href={selectedHistoryOrder.mcdReceipt} download={`McD_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded transition">
-                              <Download size={14} className="mr-1"/> Download McD
-                            </a>
-                          )}
-                        </div>
-                     )}
-                  </div>
-               </div>
-            )}
-          </div>
-        )}
-        {adminTab === 'summary' && (() => {
-          const now = new Date();
-          const todayDateStr = now.toDateString();
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-          let todayOrders = 0; let todayDeliveryRevenue = 0; let monthOrders = 0; let monthDeliveryRevenue = 0;
-
-          orders.forEach(o => {
-            const oDate = new Date(o.date);
-            if (oDate.toDateString() === todayDateStr) { todayOrders++; todayDeliveryRevenue += o.deliveryFee || 0; }
-            if (oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear) { monthOrders++; monthDeliveryRevenue += o.deliveryFee || 0; }
-          });
-
-          return (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-br from-red-600 to-red-800 p-6 rounded-2xl shadow-lg border border-red-500">
-                <h3 className="text-red-200 font-bold text-sm uppercase tracking-wide mb-1">Today's Delivery Earnings</h3>
-                <p className="text-4xl font-extrabold text-white">RM {todayDeliveryRevenue.toFixed(2)}</p>
-                <div className="mt-4 flex items-center text-red-100 text-sm font-semibold"><Truck size={16} className="mr-1" /> {todayOrders} Deliveries completed today</div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-800 p-5 rounded-xl border border-gray-700"><p className="text-gray-400 text-xs font-bold uppercase mb-1">Monthly Delivery RM</p><p className="text-2xl font-bold text-green-400">RM {monthDeliveryRevenue.toFixed(2)}</p></div>
-                <div className="bg-gray-800 p-5 rounded-xl border border-gray-700"><p className="text-gray-400 text-xs font-bold uppercase mb-1">Monthly Orders</p><p className="text-2xl font-bold text-white">{monthOrders}</p></div>
-              </div>
-              <button onClick={downloadSummary} className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md flex justify-center items-center transition">
-                <Download className="mr-2" size={20} /> Download Monthly Summary
-              </button>
-            </div>
-          );
-        })()}
       </div>
     );
   };
@@ -1002,10 +808,7 @@ const UBiteApp = () => {
                   <li key={id} className="flex justify-between"><span>{SUSHI_MENU.find(i=>i.id===id)?.name}</span><span className="font-bold text-red-400">x{q}</span></li>
                 ))}
               </ul>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => updateSellerStatus(o.id, 'preparing')} className="bg-blue-600 py-3 rounded-lg font-bold text-xs">Preparing</button>
-                <button onClick={() => updateSellerStatus(o.id, 'ready')} className="bg-green-600 py-3 rounded-lg font-bold text-xs">Ready</button>
-              </div>
+              <div className="grid grid-cols-2 gap-2"><button onClick={() => updateSellerStatus(o.id, 'preparing')} className="bg-blue-600 py-3 rounded-lg font-bold text-xs">Preparing</button><button onClick={() => updateSellerStatus(o.id, 'ready')} className="bg-green-600 py-3 rounded-lg font-bold text-xs">Ready</button></div>
             </div>
           ))}
         </div>
@@ -1026,7 +829,17 @@ const UBiteApp = () => {
           {view === 'auth' && renderAuth()}
           {view === 'welcome' && renderWelcome()}
           {view === 'user_orders' && renderUserOrders()}
-          {view === 'details' && renderUserDetails()}
+          {view === 'details' && (
+            <div className="p-6 space-y-6 animate-fadeIn">
+              <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Your Information</h2>
+              <div className="space-y-4">
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">Nickname</label><div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden"><span className="p-3 bg-gray-50 text-gray-500"><User size={18}/></span><input type="text" className="w-full p-3 outline-none" value={userDetails.nickname} readOnly /></div></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">WhatsApp Number</label><div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden"><span className="p-3 bg-gray-50 text-gray-500"><Phone size={18}/></span><input type="tel" className="w-full p-3 outline-none" value={userDetails.whatsapp} readOnly /></div></div>
+              </div>
+              <button onClick={() => setView('restaurant')} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-md mt-6">Continue to Menu</button>
+              <button onClick={() => setView('welcome')} className="w-full py-3 text-gray-500 underline">Back</button>
+            </div>
+          )}
           {view === 'restaurant' && renderRestaurantSelector()}
           {view === 'mcd' && renderMcdFlow()}
           {view === 'sushi' && renderSushiFlow()}
@@ -1041,17 +854,16 @@ const UBiteApp = () => {
         {toastMessage && <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[90%] bg-gray-900 text-white font-bold text-center py-3 px-4 rounded-xl shadow-2xl z-[200] text-sm animate-fadeIn">{toastMessage}</div>}
         {showSecretModal && (
           <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center p-4">
-             <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl">
+             <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl animate-fadeIn">
                 <h3 className="font-bold text-lg mb-4 text-gray-800 tracking-tight">Staff Login</h3>
-                <input type="text" className="w-full p-3 border rounded-lg mb-3 outline-none focus:ring-2 ring-red-500" placeholder="Username" value={staffUsername} onChange={e => setStaffUsername(e.target.value)}/>
-                <input type="password" underline="none" className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-red-500" placeholder="Password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)}/>
+                <input type="text" placeholder="Username" value={staffUsername} onChange={e => setStaffUsername(e.target.value)} className="w-full p-3 border rounded-lg mb-3 outline-none focus:ring-2 ring-red-500" />
+                <input type="password" placeholder="Password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-red-500" />
                 <div className="flex space-x-2">
                   <button onClick={() => (setShowSecretModal(false), setStaffUsername(''), setStaffPassword(''))} className="flex-1 p-3 bg-gray-100 rounded-lg font-bold text-gray-700">Cancel</button>
                   <button onClick={() => {
-                     if (staffUsername === 'CTL' && staffPassword === '0516') { setView('admin'); setAdminTab('live'); }
-                     else if (staffUsername === 'sushi' && staffPassword === 'sushi') { setView('seller'); setSellerTab('live'); }
+                     if (staffUsername === 'CTL' && staffPassword === '0516') { setView('admin'); setAdminTab('live'); setShowSecretModal(false); setStaffUsername(''); setStaffPassword(''); }
+                     else if (staffUsername === 'sushi' && staffPassword === 'sushi') { setView('seller'); setSellerTab('live'); setShowSecretModal(false); setStaffUsername(''); setStaffPassword(''); }
                      else { showToast("Invalid Credentials"); }
-                     setShowSecretModal(false); setStaffUsername(''); setStaffPassword('');
                   }} className="flex-1 p-3 bg-red-600 rounded-lg font-bold text-white">Enter</button>
                 </div>
              </div>
