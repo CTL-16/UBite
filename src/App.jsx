@@ -316,54 +316,75 @@ const UBiteApp = () => {
     const cleanUsername = authUsername.trim();
     const userData = { username: cleanUsername, phone: authPhone, password: authPassword };
     
-    if (db && user) {
-      const userRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_users'), cleanUsername.toLowerCase());
-      const existing = await getDoc(userRef);
-      if (existing.exists()) return showToast("Username already taken!");
-      await setDoc(userRef, userData);
-    } else {
-      const localUsers = JSON.parse(localStorage.getItem('ubite_users_db') || '{}');
-      if (localUsers[cleanUsername.toLowerCase()]) return showToast("Username already taken!");
-      localUsers[cleanUsername.toLowerCase()] = userData;
-      localStorage.setItem('ubite_users_db', JSON.stringify(localUsers));
-    }
+    try {
+      if (db && user) {
+        const userRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_users'), cleanUsername.toLowerCase());
+        const existing = await getDoc(userRef);
+        if (existing.exists()) return showToast("Username already taken! Try another.");
+        await setDoc(userRef, userData);
+      } else {
+        const localUsers = JSON.parse(localStorage.getItem('ubite_users_db') || '{}');
+        if (localUsers[cleanUsername.toLowerCase()]) return showToast("Username already taken! Try another.");
+        localUsers[cleanUsername.toLowerCase()] = userData;
+        localStorage.setItem('ubite_users_db', JSON.stringify(localUsers));
+      }
 
-    setCurrentUser(userData);
-    setUserDetails({ nickname: userData.username, whatsapp: userData.phone });
-    localStorage.setItem('ubite_user', JSON.stringify(userData));
-    setAuthUsername(''); setAuthPassword(''); setAuthPhone('');
-    setView('welcome');
+      setCurrentUser(userData);
+      setUserDetails({ nickname: userData.username, whatsapp: userData.phone });
+      localStorage.setItem('ubite_user', JSON.stringify(userData));
+      setAuthUsername(''); setAuthPassword(''); setAuthPhone('');
+      setView('welcome');
+      showToast("Account created successfully!");
+    } catch (error) {
+      console.error("Sign up error:", error);
+      showToast("Network error. Please try again.");
+    }
   };
 
   const handleLogin = async () => {
     if (!authUsername || !authPassword) return showToast("Please fill all fields");
     const cleanUsername = authUsername.trim();
 
-    if (db && user) {
-      const userRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_users'), cleanUsername.toLowerCase());
-      const existing = await getDoc(userRef);
-      if (existing.exists() && existing.data().password === authPassword) {
+    try {
+      if (db && user) {
+        const userRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_users'), cleanUsername.toLowerCase());
+        const existing = await getDoc(userRef);
+        
+        if (!existing.exists()) {
+          return showToast("User not found. Please Sign Up first.");
+        }
+        if (existing.data().password !== authPassword) {
+          return showToast("Incorrect password. Please try again.");
+        }
+        
         const userData = existing.data();
         setCurrentUser(userData);
         setUserDetails({ nickname: userData.username, whatsapp: userData.phone });
         localStorage.setItem('ubite_user', JSON.stringify(userData));
         setAuthUsername(''); setAuthPassword('');
         setView('welcome');
+        showToast("Login successful!");
       } else {
-        showToast("Invalid username or password");
-      }
-    } else {
-      const localUsers = JSON.parse(localStorage.getItem('ubite_users_db') || '{}');
-      if (localUsers[cleanUsername.toLowerCase()]?.password === authPassword) {
-        const userData = localUsers[cleanUsername.toLowerCase()];
-        setCurrentUser(userData);
-        setUserDetails({ nickname: userData.username, whatsapp: userData.phone });
-        localStorage.setItem('ubite_user', JSON.stringify(userData));
+        const localUsers = JSON.parse(localStorage.getItem('ubite_users_db') || '{}');
+        const existingUser = localUsers[cleanUsername.toLowerCase()];
+        
+        if (!existingUser) {
+          return showToast("User not found. Please Sign Up first.");
+        }
+        if (existingUser.password !== authPassword) {
+          return showToast("Incorrect password. Please try again.");
+        }
+        
+        setCurrentUser(existingUser);
+        setUserDetails({ nickname: existingUser.username, whatsapp: existingUser.phone });
+        localStorage.setItem('ubite_user', JSON.stringify(existingUser));
         setAuthUsername(''); setAuthPassword('');
         setView('welcome');
-      } else {
-        showToast("Invalid username or password");
+        showToast("Login successful!");
       }
+    } catch (error) {
+      console.error("Login error:", error);
+      showToast("Network error. Please try again.");
     }
   };
 
@@ -439,33 +460,54 @@ const UBiteApp = () => {
       status: 'pending', sellerStatus: restaurant === 'sushi' ? 'pending' : null
     };
 
-    if (db && user) {
-      await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), orderId), newOrder);
-    } else {
-      setOrders([newOrder, ...orders]);
+    try {
+      if (db && user) {
+        await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), orderId), newOrder);
+      } else {
+        setOrders([newOrder, ...orders]);
+      }
+      setActiveUserOrderId(orderId); setView('status');
+      showToast("Order submitted successfully!");
+      notifyPhone(`🚨 NEW ORDER: #${orderId}\nCustomer: ${finalUserDetails.nickname}\nTotal: RM${newOrder.total.toFixed(2)}`);
+    } catch (error) {
+      console.error("Checkout error:", error);
+      showToast("Failed to submit order. Check connection.");
     }
-    setActiveUserOrderId(orderId); setView('status');
-    notifyPhone(`🚨 NEW ORDER: #${orderId}\nCustomer: ${finalUserDetails.nickname}\nTotal: RM${newOrder.total.toFixed(2)}`);
   };
 
   const updateOrderStatus = async (id, s) => {
-    if (db && user) { await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(id)), { status: s }); }
-    else { setOrders(orders.map(o => o.id === id ? { ...o, status: s } : o)); }
-    showToast(`Order #${id} marked as ${s.toUpperCase()}`);
+    try {
+      if (db && user) { await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(id)), { status: s }); }
+      else { setOrders(orders.map(o => o.id === id ? { ...o, status: s } : o)); }
+      showToast(`Order #${id} marked as ${s.toUpperCase()}`);
+    } catch (error) {
+      console.error("Error updating order:", error);
+      showToast("Failed to update order. Check connection.");
+    }
   };
 
   const updateSellerStatus = async (id, s) => {
-    if (db && user) { await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(id)), { sellerStatus: s }); }
-    else { setOrders(orders.map(o => o.id === id ? { ...o, sellerStatus: s } : o)); }
-    showToast(`Admin notified: Order is ${s.toUpperCase()}`);
-    notifyPhone(`🍣 SUSHI TRUCK UPDATE\nOrder #${id} is now ${s.toUpperCase()}!`);
+    try {
+      if (db && user) { await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(id)), { sellerStatus: s }); }
+      else { setOrders(orders.map(o => o.id === id ? { ...o, sellerStatus: s } : o)); }
+      showToast(`Admin notified: Order is ${s.toUpperCase()}`);
+      notifyPhone(`🍣 SUSHI TRUCK UPDATE\nOrder #${id} is now ${s.toUpperCase()}!`);
+    } catch (error) {
+      console.error("Error updating seller status:", error);
+      showToast("Failed to update status. Check connection.");
+    }
   };
 
   const toggleShopStatus = async () => {
     const next = !isShopOpen;
-    if (db && user) { await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'settings'), 'store_status'), { isOpen: next }, { merge: true }); }
-    else { setIsShopOpen(next); }
-    showToast(next ? "Shop OPENED" : "Shop CLOSED");
+    try {
+      if (db && user) { await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'settings'), 'store_status'), { isOpen: next }, { merge: true }); }
+      else { setIsShopOpen(next); }
+      showToast(next ? "Shop OPENED" : "Shop CLOSED");
+    } catch (error) {
+      console.error("Error toggling shop status:", error);
+      showToast("Failed to change shop status.");
+    }
   };
 
   const showToast = (m) => { setToastMessage(m); setTimeout(() => setToastMessage(''), 3000); };
