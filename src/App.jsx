@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Bike, MapPin, Phone, User, Users, CheckCircle, Info, Upload, Store, ShieldAlert, Clock, CreditCard, MessageCircle, MessageSquare, LayoutDashboard, History, BarChart3, Package, Truck, Home, ChevronRight, Download, X, LogOut, ListOrdered } from 'lucide-react';
+import { ShoppingBag, Bike, MapPin, Phone, User, Users, CheckCircle, Info, Upload, Store, ShieldAlert, Clock, CreditCard, MessageCircle, MessageSquare, LayoutDashboard, History, BarChart3, Package, Truck, Home, ChevronRight, Download, X, LogOut, ListOrdered, Utensils } from 'lucide-react';
 
 // --- FIREBASE CLOUD SETUP ---
 import { initializeApp } from 'firebase/app';
@@ -139,7 +139,7 @@ const SUSHI_CATEGORIES = ['Gunkan', 'Inari', 'Temaki', 'Maki Mono', 'Nigiri', 'S
 const UBiteApp = () => {
   const [tailwindLoaded, setTailwindLoaded] = useState(false);
 
-  // --- AUTO-INJECT TAILWIND ---
+  // --- AUTO-INJECT TAILWIND & THEMES ---
   useEffect(() => {
     if (document.getElementById('tailwind-cdn')) {
       setTailwindLoaded(true);
@@ -167,6 +167,14 @@ const UBiteApp = () => {
     style.innerHTML = `
       .scrollbar-hide::-webkit-scrollbar { display: none; }
       .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      .bg-batik { 
+        background-color: #fdfbfb; 
+        background-image: url('https://www.transparenttextures.com/patterns/arabesque.png'); 
+      }
+      .bg-batik-dark { 
+        background-color: #111827; 
+        background-image: url('https://www.transparenttextures.com/patterns/arabesque.png'); 
+      }
     `;
     document.head.appendChild(style);
   }, []);
@@ -323,7 +331,7 @@ const UBiteApp = () => {
         setAdminTab('live'); 
       } else if (h === '#seller') { 
         setShowSecretModal(true); 
-        window.location.hash = ''; // Clear hash so it doesn't loop
+        window.location.hash = ''; 
       }
     };
     handleHash();
@@ -615,68 +623,98 @@ const UBiteApp = () => {
 
   if (!tailwindLoaded || view === 'loading') return <div className="flex items-center justify-center h-screen bg-gray-50 font-bold">Loading UBite...</div>;
 
+  // --- BRANDING COMPONENT ---
+  const BrandLogo = () => (
+    <div className="relative mb-4">
+      {/* Uploaded Logo Link - Assuming it is placed in the public folder as ubite-logo.jpg */}
+      <img src="/ubite-logo.jpg" alt="UBite Logo" className="w-56 h-auto mx-auto drop-shadow-xl"
+        onError={(e) => {
+          e.target.style.display='none';
+          document.getElementById('fallback-logo').style.display='flex';
+        }}
+      />
+      {/* Fallback Logo if the image file is missing */}
+      <div id="fallback-logo" className="hidden flex-col items-center">
+         <div className="bg-gradient-to-br from-red-600 to-orange-500 p-5 rounded-full text-white shadow-xl mb-3 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-30"></div>
+            <div className="relative flex items-center justify-center space-x-1">
+              <Bike size={44} strokeWidth={2.5}/>
+              <Utensils size={20} strokeWidth={2.5} className="absolute -right-2 -bottom-2 bg-red-600 rounded-full p-1 border-2 border-white"/>
+            </div>
+         </div>
+         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">UBite</h1>
+      </div>
+    </div>
+  );
+
   // --- UI COMPONENTS ---
   const renderAuth = () => (
     <div className="p-8 flex flex-col items-center justify-center min-h-[80vh] animate-fadeIn">
-      <div className="bg-red-600 p-4 rounded-full text-white shadow-lg mb-6"><Bike size={50} /></div>
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-1">UBite</h1>
-      <p className="text-red-600 font-bold mb-8 text-sm">Sign in to track your orders</p>
+      <BrandLogo />
+      <p className="text-red-600 font-bold mb-8 text-sm uppercase tracking-wider">Sign in to track orders</p>
       
       <div className="w-full space-y-4">
-        <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
+        <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-orange-500 shadow-sm"/>
         {authMode === 'signup' && (
           <div className="w-full">
-            <input type="tel" placeholder="WhatsApp Number" value={authPhone} onChange={e => setAuthPhone(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
+            <input type="tel" placeholder="WhatsApp Number" value={authPhone} onChange={e => setAuthPhone(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-orange-500 shadow-sm"/>
             <p className="text-xs text-red-500 mt-1 ml-1 text-left font-medium">* Must be an active WhatsApp number</p>
           </div>
         )}
-        <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
-        <button onClick={authMode === 'login' ? handleLogin : handleSignUp} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg transition active:scale-95">{authMode === 'login' ? 'Login' : 'Create Account'}</button>
+        <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-orange-500 shadow-sm"/>
+        <button onClick={authMode === 'login' ? handleLogin : handleSignUp} className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold py-4 rounded-xl shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1 transition-all">{authMode === 'login' ? 'Login' : 'Create Account'}</button>
       </div>
 
-      <p className="mt-6 text-sm text-gray-500 font-medium">
+      <p className="mt-8 text-sm text-gray-600 font-medium">
         {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-        <span onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthUsername(''); setAuthPassword(''); setAuthPhone(''); }} className="text-red-600 font-bold cursor-pointer">{authMode === 'login' ? "Sign Up" : "Login"}</span>
+        <span onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthUsername(''); setAuthPassword(''); setAuthPhone(''); }} className="text-orange-600 hover:text-red-600 font-extrabold cursor-pointer transition-colors">{authMode === 'login' ? "Sign Up" : "Login"}</span>
       </p>
 
-      <div className="absolute bottom-6 text-xs text-gray-400 cursor-pointer hover:text-red-500 transition" onClick={() => setShowSecretModal(true)}>Staff Login</div>
+      <div className="absolute bottom-6 text-xs text-gray-400 cursor-pointer hover:text-red-500 transition font-bold uppercase" onClick={() => setShowSecretModal(true)}>Staff Login</div>
     </div>
   );
 
   const renderWelcome = () => (
     <div className="flex flex-col items-center text-center p-6 space-y-6 animate-fadeIn">
       {currentUser && (
-        <div className="w-full flex justify-between items-center text-sm font-bold text-gray-600 mb-2">
+        <div className="w-full flex justify-between items-center text-sm font-bold text-gray-700 mb-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100">
           <span>Hi, {currentUser.username}! 👋</span>
-          <button onClick={handleLogout} className="flex items-center text-red-500 hover:text-red-700"><LogOut size={16} className="mr-1"/> Logout</button>
+          <button onClick={handleLogout} className="flex items-center text-red-500 hover:text-red-700 transition"><LogOut size={16} className="mr-1"/> Logout</button>
         </div>
       )}
-      <div className="bg-red-600 p-4 rounded-full text-white shadow-lg"><Bike size={64} /></div>
-      <h1 className="text-4xl font-extrabold text-gray-900 cursor-pointer select-none" onClick={() => secretTap >= 4 ? (setShowSecretModal(true), setSecretTap(0)) : setSecretTap(s => s + 1)}>UBite</h1>
-      <p className="text-xl font-bold text-red-600 italic">"U order, I bike, U Bite"</p>
-      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider"><b>U</b>niversity <b>B</b>ased <b>I</b>nnovative <b>T</b>asty <b>E</b>xpress</p>
+      
+      <div onClick={() => secretTap >= 4 ? (setShowSecretModal(true), setSecretTap(0)) : setSecretTap(s => s + 1)}>
+        <BrandLogo />
+      </div>
+
+      <div className="text-center space-y-1">
+        <p className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-orange-500 italic">"U order, I bike, U Bite"</p>
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest"><b>U</b>niversity <b>B</b>ased <b>I</b>nnovative<br/><b>T</b>asty <b>E</b>xpress</p>
+      </div>
 
       {currentUser && (
         <div className="w-full flex space-x-3 mt-4">
-          <button onClick={() => setView('user_orders')} className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center text-sm"><ListOrdered size={16} className="mr-2" /> Track Orders</button>
-          <button onClick={() => setShowFeedbackModal(true)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center text-sm"><MessageSquare size={16} className="mr-2" /> Feedback</button>
+          <button onClick={() => setView('user_orders')} className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl shadow-md border-b-4 border-gray-950 active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center text-sm"><ListOrdered size={16} className="mr-2" /> Track Orders</button>
+          <button onClick={() => setShowFeedbackModal(true)} className="flex-1 bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white font-bold py-3 rounded-xl shadow-md border-b-4 border-orange-600 active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center text-sm"><MessageSquare size={16} className="mr-2" /> Feedback</button>
         </div>
       )}
 
-      <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200 text-left w-full mt-4">
-        <h3 className="font-bold text-lg mb-2 flex items-center text-gray-800"><Info className="mr-2 text-yellow-600" size={20}/> Our Story</h3>
+      <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl border-l-4 border-red-500 shadow-sm text-left w-full mt-4">
+        <h3 className="font-bold text-lg mb-2 flex items-center text-gray-800"><Info className="mr-2 text-red-500" size={20}/> Our Story</h3>
         <p className="text-gray-700 text-sm leading-relaxed">U.B.I.T.E was born to make your life easier. We pedal to save your time so you can focus on studies and rest.</p>
       </div>
 
       {!isShopLoaded ? (
         <button disabled className="w-full bg-gray-300 text-gray-500 font-bold py-4 rounded-xl flex justify-center items-center"><Clock className="mr-2 animate-spin" size={20} /> Checking Status...</button>
       ) : !isShopOpen ? (
-        <div className="w-full bg-red-100 text-red-700 p-4 rounded-lg font-bold flex items-center justify-center shadow-inner"><Clock className="mr-2" /> UBite is currently CLOSED.</div>
+        <div className="w-full bg-red-100 text-red-700 p-4 rounded-lg font-bold flex items-center justify-center shadow-inner border border-red-200"><Clock className="mr-2" /> UBite is currently CLOSED.</div>
       ) : (
-        <button onClick={() => setView('details')} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95 text-lg">Start Order</button>
+        <button onClick={() => setView('details')} className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-extrabold py-5 rounded-xl shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1 transition-all text-lg tracking-wide flex justify-center items-center">
+          Start Order <ChevronRight className="ml-2" size={20}/>
+        </button>
       )}
 
-      <div className="text-xs text-gray-400 cursor-pointer hover:text-red-500 transition mt-6" onClick={() => setShowSecretModal(true)}>
+      <div className="text-xs text-gray-400 cursor-pointer hover:text-red-500 transition mt-6 font-bold uppercase" onClick={() => setShowSecretModal(true)}>
         Staff Login
       </div>
     </div>
@@ -685,140 +723,160 @@ const UBiteApp = () => {
   const renderUserOrders = () => {
     const myOrders = orders.filter(o => o.userDetails?.nickname === currentUser?.username);
     return (
-      <div className="p-6 animate-fadeIn bg-gray-50 min-h-screen pb-24">
-        <h2 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6 flex items-center"><ListOrdered className="mr-2"/> My Orders</h2>
+      <div className="p-6 animate-fadeIn bg-transparent min-h-screen pb-24">
+        <h2 className="text-2xl font-bold text-gray-900 border-b-2 border-red-200 pb-2 mb-6 flex items-center"><ListOrdered className="mr-2 text-red-600"/> My Orders</h2>
         <div className="space-y-4">
-          {myOrders.length === 0 ? <p className="text-center text-gray-500 py-10">No orders yet.</p> : myOrders.map(order => (
-            <div key={order.id} onClick={() => { setActiveUserOrderId(order.id); setView('status'); }} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-2 border-b border-gray-100 pb-2">
+          {myOrders.length === 0 ? <p className="text-center text-gray-600 font-medium py-10 bg-white rounded-xl shadow-sm">No orders yet.</p> : myOrders.map(order => (
+            <div key={order.id} onClick={() => { setActiveUserOrderId(order.id); setView('status'); }} className="bg-white p-5 rounded-xl border border-gray-100 shadow-md cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1">
+              <div className="flex justify-between items-start mb-3 border-b border-gray-100 pb-3">
                 <div>
-                  <h3 className="font-bold text-lg text-gray-800">#{order.id}</h3>
-                  <p className="text-xs text-gray-500">{new Date(order.date).toLocaleDateString()} • {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                  <h3 className="font-bold text-lg text-gray-900 tracking-tight">#{order.id}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5"><Clock size={10} className="inline mr-1"/>{new Date(order.date).toLocaleDateString()} • {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                 </div>
-                <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${order.status === 'arrived' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{order.status}</span>
+                <span className={`text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${order.status === 'arrived' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-orange-100 text-orange-700 border border-orange-200'}`}>{order.status}</span>
               </div>
-              <div className="text-sm text-gray-600 flex justify-between"><span>{order.restaurant === 'foodtruck' ? 'Food Truck' : (order.restaurant || '').toUpperCase()}</span><span className="font-bold text-gray-900">RM {(order.total || 0).toFixed(2)}</span></div>
+              <div className="text-sm text-gray-700 flex justify-between items-center">
+                <span className="font-semibold bg-gray-100 px-2 py-1 rounded">{order.restaurant === 'foodtruck' ? 'Food Truck' : (order.restaurant || '').toUpperCase()}</span>
+                <span className="font-extrabold text-red-600 text-lg">RM {(order.total || 0).toFixed(2)}</span>
+              </div>
             </div>
           ))}
         </div>
-        <button onClick={() => setView('welcome')} className="w-full py-4 text-gray-500 font-semibold underline mt-6">Back to Home</button>
+        <button onClick={() => setView('welcome')} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold mt-6 bg-white rounded-xl shadow-sm border border-gray-200">Back to Home</button>
       </div>
     );
   };
 
   const renderRestaurantSelector = () => (
     <div className="p-6 space-y-6 animate-fadeIn">
-      <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">What to eat?</h2>
-      <div className="grid grid-cols-1 gap-4">
-        <button onClick={() => { setRestaurant('mcd'); setView('mcd'); }} className="flex items-center p-4 bg-white border-2 border-yellow-400 rounded-xl shadow-sm hover:bg-yellow-50 text-left">
-          <div className="bg-yellow-400 p-3 rounded-lg text-red-600 mr-4 font-bold text-2xl">M</div>
-          <div><h3 className="text-xl font-bold text-gray-800">McDonald's</h3><p className="text-xs text-gray-500 mt-1">Hot burgers and fries, delivered straight to your block.</p></div>
+      <h2 className="text-2xl font-extrabold text-gray-900 border-b-2 border-red-200 pb-2">What to eat?</h2>
+      <div className="grid grid-cols-1 gap-5">
+        <button onClick={() => { setRestaurant('mcd'); setView('mcd'); }} className="flex items-center p-5 bg-white border-2 border-yellow-400 rounded-2xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1 text-left relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 opacity-10"><Utensils size={100} /></div>
+          <div className="bg-yellow-400 p-4 rounded-xl text-red-600 mr-5 font-bold text-3xl shadow-sm">M</div>
+          <div className="relative z-10"><h3 className="text-xl font-extrabold text-gray-900">McDonald's</h3><p className="text-xs text-gray-600 mt-1 font-medium">Hot burgers and fries, delivered straight to your block.</p></div>
         </button>
-        <button onClick={() => { setRestaurant('sushi'); setView('sushi'); }} className="flex items-center p-4 bg-white border-2 border-red-200 rounded-xl shadow-sm hover:bg-red-50 text-left">
-          <div className="bg-red-100 p-3 rounded-lg text-red-600 mr-4"><Store size={28} /></div>
-          <div><h3 className="text-xl font-bold text-gray-800">Sushi Truck</h3><p className="text-xs text-gray-500 mt-1">No.1 Sushi Truck in KL.</p></div>
+        <button onClick={() => { setRestaurant('sushi'); setView('sushi'); }} className="flex items-center p-5 bg-white border-2 border-red-500 rounded-2xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1 text-left relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 opacity-10 text-red-600"><Store size={100} /></div>
+          <div className="bg-gradient-to-br from-red-600 to-red-700 p-4 rounded-xl text-white mr-5 shadow-sm"><Store size={32} /></div>
+          <div className="relative z-10"><h3 className="text-xl font-extrabold text-gray-900">Sushi Truck</h3><p className="text-xs text-gray-600 mt-1 font-medium">No.1 Sushi Truck in KL.</p></div>
         </button>
-        <button onClick={() => { setRestaurant('foodtruck'); setView('foodtruck'); }} className="flex items-center p-4 bg-white border-2 border-orange-200 rounded-xl shadow-sm hover:bg-orange-50 text-left">
-          <div className="bg-orange-100 p-3 rounded-lg text-orange-600 mr-4"><Truck size={28} /></div>
-          <div><h3 className="text-xl font-bold text-gray-800">Other Food Trucks</h3><p className="text-xs text-gray-500 mt-1">Order from any other truck around campus.</p></div>
+        <button onClick={() => { setRestaurant('foodtruck'); setView('foodtruck'); }} className="flex items-center p-5 bg-white border-2 border-orange-400 rounded-2xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1 text-left relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 opacity-10 text-orange-600"><Truck size={100} /></div>
+          <div className="bg-gradient-to-br from-orange-400 to-orange-500 p-4 rounded-xl text-white mr-5 shadow-sm"><Truck size={32} /></div>
+          <div className="relative z-10"><h3 className="text-xl font-extrabold text-gray-900">Other Food Trucks</h3><p className="text-xs text-gray-600 mt-1 font-medium">Order from any other truck around campus.</p></div>
         </button>
       </div>
-      <button onClick={() => setView('welcome')} className="w-full py-3 text-gray-500 font-semibold underline">Back</button>
+      <button onClick={() => setView('welcome')} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold bg-white rounded-xl shadow-sm border border-gray-200 mt-4">Cancel & Back</button>
     </div>
   );
 
   const renderFoodTruckFlow = () => (
     <div className="p-6 space-y-6 animate-fadeIn pb-24">
-      <h2 className="text-2xl font-bold text-orange-600 border-b pb-2 flex items-center">Food Truck Order</h2>
-      <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-start shadow-sm">
-        <Info className="mr-3 shrink-0 text-orange-600" size={24} />
+      <h2 className="text-2xl font-extrabold text-orange-600 border-b-2 border-orange-200 pb-2 flex items-center"><Truck className="mr-2"/> Food Truck Order</h2>
+      <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 p-5 rounded-2xl flex items-start shadow-sm">
+        <Info className="mr-3 shrink-0 text-orange-600 mt-1" size={24} />
         <div>
-          <span className="font-bold block mb-1">How it works:</span>
-          <p className="text-sm text-orange-800">1. Tell us which food truck, what food, and the quantity.<br/>2. Delivery fee is RM 1.50 per 3 items.<br/>3. You only pay the delivery fee now. We will contact you via WhatsApp for the exact food price later.</p>
+          <span className="font-extrabold text-orange-900 block mb-2">How it works:</span>
+          <ul className="text-sm text-orange-800 space-y-1 font-medium">
+            <li>1. Type the truck name, food, and quantity.</li>
+            <li>2. Delivery fee: RM 1.50 per 3 items.</li>
+            <li>3. Pay delivery fee now. We will WhatsApp you later for the food price.</li>
+          </ul>
         </div>
       </div>
-      <div className="bg-white p-4 rounded-xl border space-y-4 shadow-sm">
+      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-md space-y-5">
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1">Total Number of Items</label>
-          <p className="text-xs text-gray-500 mb-2">Used to calculate delivery fee.</p>
-          <div className="flex items-center border rounded-lg w-max overflow-hidden"><button onClick={() => setFtItemCount(Math.max(1, ftItemCount - 1))} className="px-4 py-2 bg-gray-100 font-bold">-</button><span className="px-6 py-2 font-bold">{ftItemCount}</span><button onClick={() => setFtItemCount(ftItemCount + 1)} className="px-4 py-2 bg-gray-100 font-bold">+</button></div>
+          <label className="block text-sm font-extrabold text-gray-800 mb-1">Total Number of Items</label>
+          <p className="text-xs text-gray-500 mb-3 font-medium">Used to calculate delivery fee.</p>
+          <div className="flex items-center border-2 border-gray-200 rounded-xl w-max overflow-hidden bg-gray-50"><button onClick={() => setFtItemCount(Math.max(1, ftItemCount - 1))} className="px-5 py-3 hover:bg-gray-200 font-black text-gray-700 transition">-</button><span className="px-6 py-3 font-black text-lg bg-white border-x-2 border-gray-200">{ftItemCount}</span><button onClick={() => setFtItemCount(ftItemCount + 1)} className="px-5 py-3 hover:bg-gray-200 font-black text-gray-700 transition">+</button></div>
         </div>
-        <div className="border-t pt-4">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Order Details</label>
-          <textarea rows="5" className="w-full p-3 border rounded-lg outline-none focus:ring-2 ring-orange-400" placeholder="e.g. Truck: Takoyaki Abang&#10;Food: 1x Mix Takoyaki (10pcs)&#10;Food: 2x Takoyaki Sotong (5pcs)" value={ftOrderText} onChange={(e) => setFtOrderText(e.target.value)}></textarea>
+        <div className="border-t-2 border-gray-100 pt-5">
+          <label className="block text-sm font-extrabold text-gray-800 mb-2">Order Details</label>
+          <textarea rows="5" className="w-full p-4 border-2 border-gray-200 rounded-xl outline-none focus:border-orange-500 focus:ring-4 ring-orange-500/20 transition-all shadow-sm font-medium text-gray-700" placeholder="e.g. Truck: Takoyaki Abang&#10;Food: 1x Mix Takoyaki (10pcs)&#10;Food: 2x Takoyaki Sotong (5pcs)" value={ftOrderText} onChange={(e) => setFtOrderText(e.target.value)}></textarea>
         </div>
       </div>
-      <button onClick={() => setView('checkout')} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl shadow-md transition">Proceed to Payment</button>
-      <button onClick={() => setView('restaurant')} className="w-full py-3 text-gray-500 font-semibold underline">Back</button>
+      <button onClick={() => setView('checkout')} className="w-full bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white font-extrabold py-5 rounded-xl shadow-lg border-b-4 border-orange-600 active:border-b-0 active:translate-y-1 transition-all text-lg">Proceed to Payment</button>
+      <button onClick={() => setView('restaurant')} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold bg-white rounded-xl shadow-sm border border-gray-200">Back</button>
     </div>
   );
 
   const renderMcdFlow = () => (
-    <div className="p-6 space-y-6 animate-fadeIn">
-      <h2 className="text-2xl font-bold text-yellow-600 border-b pb-2 flex items-center">McDonald's Order</h2>
-      <div className="bg-red-50 border border-red-200 p-3 rounded-lg flex items-start"><ShieldAlert className="text-red-600 mr-3 mt-1 shrink-0" size={20} /><p className="text-sm text-red-800 font-semibold">IMPORTANT: Sundae cones are NOT available for UBite delivery.</p></div>
+    <div className="p-6 space-y-6 animate-fadeIn pb-24">
+      <h2 className="text-2xl font-extrabold text-red-600 border-b-2 border-yellow-400 pb-2 flex items-center">McDonald's Order</h2>
+      <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex items-start shadow-sm"><ShieldAlert className="text-red-600 mr-3 mt-1 shrink-0" size={24} /><p className="text-sm text-red-900 font-bold">IMPORTANT: Sundae cones are NOT available for UBite delivery.</p></div>
       <div className="space-y-3">
-        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition ${mcdOrderType === 'self' ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-200' : 'bg-white border-gray-300'}`}>
-          <input type="radio" checked={mcdOrderType === 'self'} onChange={() => setMcdOrderType('self')} /><div className="ml-3"><span className="block font-bold">I will order on the McD App</span></div>
+        <label className={`flex items-center p-5 border-2 rounded-2xl cursor-pointer transition-all shadow-sm ${mcdOrderType === 'self' ? 'border-yellow-500 bg-yellow-50 ring-4 ring-yellow-500/20' : 'bg-white border-gray-200 hover:border-yellow-300'}`}>
+          <input type="radio" checked={mcdOrderType === 'self'} onChange={() => setMcdOrderType('self')} className="w-5 h-5 text-yellow-500 accent-yellow-500" /><div className="ml-4"><span className="block font-extrabold text-gray-900 text-lg">I will order on the McD App</span></div>
         </label>
-        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition ${mcdOrderType === 'help' ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-200' : 'bg-white border-gray-300'}`}>
-          <input type="radio" checked={mcdOrderType === 'help'} onChange={() => setMcdOrderType('help')} /><div className="ml-3"><span className="block font-bold">Please order for me</span></div>
+        <label className={`flex items-center p-5 border-2 rounded-2xl cursor-pointer transition-all shadow-sm ${mcdOrderType === 'help' ? 'border-yellow-500 bg-yellow-50 ring-4 ring-yellow-500/20' : 'bg-white border-gray-200 hover:border-yellow-300'}`}>
+          <input type="radio" checked={mcdOrderType === 'help'} onChange={() => setMcdOrderType('help')} className="w-5 h-5 text-yellow-500 accent-yellow-500" /><div className="ml-4"><span className="block font-extrabold text-gray-900 text-lg">Please order for me</span></div>
         </label>
       </div>
-      <div className="bg-white p-4 rounded-xl border space-y-4">
+      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-md space-y-5">
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1">Number of Items</label>
-          <div className="flex items-center border rounded-lg w-max overflow-hidden"><button onClick={() => setMcdItemCount(Math.max(1, mcdItemCount - 1))} className="px-4 py-2 bg-gray-100 font-bold">-</button><span className="px-6 py-2 font-bold">{mcdItemCount}</span><button onClick={() => setMcdItemCount(mcdItemCount + 1)} className="px-4 py-2 bg-gray-100 font-bold">+</button></div>
+          <label className="block text-sm font-extrabold text-gray-800 mb-2">Number of Items</label>
+          <div className="flex items-center border-2 border-gray-200 rounded-xl w-max overflow-hidden bg-gray-50"><button onClick={() => setMcdItemCount(Math.max(1, mcdItemCount - 1))} className="px-5 py-3 hover:bg-gray-200 font-black text-gray-700 transition">-</button><span className="px-6 py-3 font-black text-lg bg-white border-x-2 border-gray-200">{mcdItemCount}</span><button onClick={() => setMcdItemCount(mcdItemCount + 1)} className="px-5 py-3 hover:bg-gray-200 font-black text-gray-700 transition">+</button></div>
         </div>
         {mcdOrderType === 'self' ? (
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Upload McD Order Screenshot</label>
+          <div className="border-t-2 border-gray-100 pt-5">
+            <label className="block text-sm font-extrabold text-gray-800 mb-3">Upload McD Order Screenshot</label>
             <input type="file" id="mcd-upload" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setMcdReceipt)} />
-            <label htmlFor="mcd-upload" className="border-2 border-dashed rounded-xl p-6 text-center bg-gray-50 cursor-pointer block hover:bg-gray-100">
-              {mcdReceipt ? <div className="text-green-600 font-bold"><CheckCircle className="mx-auto mb-1"/> Screenshot Attached</div> : <div className="text-gray-400"><Upload className="mx-auto mb-1"/> Tap to upload screenshot</div>}
-              <p className="text-xs text-red-500 mt-2 font-semibold">*Screenshot must show the collection Number</p>
+            <label htmlFor="mcd-upload" className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center bg-gray-50 cursor-pointer block hover:bg-gray-100 hover:border-yellow-500 transition-all">
+              {mcdReceipt ? <div className="text-green-600 font-extrabold"><CheckCircle className="mx-auto mb-2" size={32}/> Screenshot Attached</div> : <div className="text-gray-500 font-bold"><Upload className="mx-auto mb-2" size={32}/> Tap to upload screenshot</div>}
+              <p className="text-xs text-red-500 mt-3 font-bold bg-red-50 p-2 rounded-lg inline-block border border-red-100">*Screenshot must show the collection Number</p>
             </label>
           </div>
         ) : (
-          <textarea rows="4" className="w-full p-3 border rounded-lg outline-none focus:ring-2 ring-yellow-400" placeholder="e.g. 1x McChicken Set (Large)..." value={mcdOrderText} onChange={(e) => setMcdOrderText(e.target.value)}></textarea>
+          <div className="border-t-2 border-gray-100 pt-5">
+             <label className="block text-sm font-extrabold text-gray-800 mb-3">Your Order Details</label>
+             <textarea rows="4" className="w-full p-4 border-2 border-gray-200 rounded-xl outline-none focus:border-yellow-500 focus:ring-4 ring-yellow-500/20 transition-all shadow-sm font-medium text-gray-700" placeholder="e.g. 1x McChicken Set (Large)..." value={mcdOrderText} onChange={(e) => setMcdOrderText(e.target.value)}></textarea>
+          </div>
         )}
       </div>
-      <button onClick={() => setView('checkout')} className="w-full bg-yellow-500 text-black font-bold py-4 rounded-xl shadow-md transition">Proceed to Payment</button>
-      <button onClick={() => setView('restaurant')} className="w-full py-3 text-gray-500 underline">Back</button>
+      <button onClick={() => setView('checkout')} className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black font-extrabold py-5 rounded-xl shadow-lg border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1 transition-all text-lg">Proceed to Payment</button>
+      <button onClick={() => setView('restaurant')} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold bg-white rounded-xl shadow-sm border border-gray-200">Back</button>
     </div>
   );
 
   const renderSushiFlow = () => {
     const displayed = SUSHI_MENU.filter(i => i.category === activeSushiCategory);
     return (
-      <div className="p-6 space-y-4 animate-fadeIn bg-gray-50 pb-32">
-        <div className="sticky top-0 bg-gray-50 pt-2 pb-4 z-10 border-b">
-          <h2 className="text-2xl font-bold text-red-600">NURIMAN SUSHI</h2>
-          <div className="flex overflow-x-auto space-x-2 mt-4 pb-2 scrollbar-hide">
+      <div className="p-0 animate-fadeIn bg-gray-50 pb-32">
+        <div className="sticky top-0 bg-white/90 backdrop-blur-md pt-6 pb-4 px-6 z-10 border-b-2 border-red-200 shadow-sm">
+          <h2 className="text-2xl font-extrabold text-red-600 flex items-center"><Store className="mr-2"/> NURIMAN SUSHI</h2>
+          <div className="flex overflow-x-auto space-x-3 mt-5 pb-2 scrollbar-hide">
             {SUSHI_CATEGORIES.map(c => (
-              <button key={c} onClick={() => setActiveSushiCategory(c)} className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold ${activeSushiCategory === c ? 'bg-red-600 text-white shadow-md' : 'bg-white text-gray-600 border'}`}>{c}</button>
+              <button key={c} onClick={() => setActiveSushiCategory(c)} className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-extrabold transition-all shadow-sm border-2 ${activeSushiCategory === c ? 'bg-red-600 text-white border-red-600 scale-105' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300 hover:text-red-600'}`}>{c}</button>
             ))}
           </div>
         </div>
-        <div className="space-y-2">
-          {(CATEGORY_IMAGES[activeSushiCategory] || []).map((src, idx) => <img key={idx} src={src} className="w-full rounded-xl shadow-sm border" alt="menu"/>)}
-          <h3 className="font-bold text-gray-800 border-b pb-2 mt-6">Select Quantities</h3>
+        <div className="p-6 space-y-3">
+          {(CATEGORY_IMAGES[activeSushiCategory] || []).map((src, idx) => <img key={idx} src={src} className="w-full rounded-2xl shadow-md border-2 border-white" alt="menu"/>)}
+          <h3 className="font-extrabold text-gray-900 border-b-2 border-gray-200 pb-2 mt-8 mb-4 text-lg">Select Quantities</h3>
           {displayed.map(item => (
-            <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm">
-              <div className="flex-1"><p className="text-[10px] font-bold text-gray-400">{item.code} • {item.pcs}</p><h4 className="font-bold text-gray-800 text-sm">{item.name}</h4><span className="font-bold text-red-600 text-sm">RM {item.price.toFixed(2)}</span></div>
-              <div className="flex items-center border rounded-lg overflow-hidden bg-gray-50 shrink-0">
-                <button onClick={() => handleSushiChange(item.id, -1)} className="w-8 h-8 font-bold">-</button>
-                <span className="w-7 text-center font-bold text-sm bg-white">{sushiOrder[item.id] || 0}</span>
-                <button onClick={() => handleSushiChange(item.id, 1)} className="w-8 h-8 font-bold text-red-600">+</button>
+            <div key={item.id} className="flex justify-between items-center bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex-1 pr-4">
+                 <p className="text-[10px] font-extrabold text-gray-400 tracking-wider mb-1 uppercase">{item.code} • {item.pcs}</p>
+                 <h4 className="font-bold text-gray-900 text-sm leading-tight">{item.name}</h4>
+                 <span className="font-extrabold text-red-600 text-sm mt-1 inline-block bg-red-50 px-2 py-0.5 rounded border border-red-100">RM {item.price.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 shrink-0 shadow-inner">
+                <button onClick={() => handleSushiChange(item.id, -1)} className="w-10 h-10 font-black text-gray-600 hover:bg-gray-200 transition text-lg">-</button>
+                <span className="w-8 text-center font-black text-base bg-white h-10 flex items-center justify-center border-x-2 border-gray-200">{sushiOrder[item.id] || 0}</span>
+                <button onClick={() => handleSushiChange(item.id, 1)} className="w-10 h-10 font-black text-red-600 hover:bg-red-100 transition text-lg">+</button>
               </div>
             </div>
           ))}
         </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-100 p-5 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] z-20">
            <div className="max-w-md mx-auto flex space-x-3 items-center">
-              <div className="flex-1 text-xs font-bold">Total: {calculateSushiItemsCount()} items (RM {calculateSushiFoodTotal().toFixed(2)})</div>
-              <button onClick={() => setView('restaurant')} className="px-4 py-3 bg-gray-100 rounded-xl font-bold">Back</button>
-              <button disabled={calculateSushiItemsCount() === 0} onClick={() => setView('checkout')} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">Checkout</button>
+              <div className="flex-1">
+                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Total Items: {calculateSushiItemsCount()}</p>
+                 <p className="text-lg font-extrabold text-gray-900">RM {calculateSushiFoodTotal().toFixed(2)}</p>
+              </div>
+              <button onClick={() => setView('restaurant')} className="px-5 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition">Back</button>
+              <button disabled={calculateSushiItemsCount() === 0} onClick={() => setView('checkout')} className="flex-1 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-extrabold py-4 rounded-xl shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1 transition-all disabled:opacity-50 disabled:border-b-0 disabled:transform-none">Checkout</button>
            </div>
         </div>
       </div>
@@ -830,37 +888,40 @@ const UBiteApp = () => {
     const food = restaurant === 'sushi' ? calculateSushiFoodTotal() : 0;
     return (
       <div className="p-6 space-y-6 animate-fadeIn pb-24">
-        <h2 className="text-2xl font-bold border-b pb-2">Checkout</h2>
-        <div className="bg-white p-5 rounded-xl border shadow-sm space-y-3">
-          <h3 className="font-bold border-b pb-2 flex items-center"><ShoppingBag size={18} className="mr-2 text-gray-500" /> Order Summary</h3>
-          <div className="text-sm space-y-2">
-            <div className="flex justify-between"><span>Restaurant</span><span className="font-semibold">{restaurant === 'foodtruck' ? 'Food Truck' : restaurant.toUpperCase()}</span></div>
-            {restaurant === 'sushi' && <div className="flex justify-between pt-2 border-t"><span>Food Price</span><span>RM {food.toFixed(2)}</span></div>}
-            <div className="flex justify-between"><span>Delivery Fee</span><span>RM {fee.toFixed(2)}</span></div>
+        <h2 className="text-2xl font-extrabold text-gray-900 border-b-2 border-red-200 pb-2">Final Checkout</h2>
+        
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-md space-y-4">
+          <h3 className="font-extrabold text-gray-900 border-b border-gray-100 pb-3 flex items-center text-lg"><ShoppingBag size={20} className="mr-2 text-red-600" /> Order Summary</h3>
+          <div className="text-sm space-y-3 font-medium text-gray-600">
+            <div className="flex justify-between items-center"><span className="bg-gray-100 px-2 py-1 rounded">Restaurant</span><span className="font-bold text-gray-900">{restaurant === 'foodtruck' ? 'Food Truck' : restaurant.toUpperCase()}</span></div>
+            {restaurant === 'sushi' && <div className="flex justify-between items-center pt-3 border-t border-gray-50"><span>Food Price</span><span className="font-bold text-gray-900">RM {food.toFixed(2)}</span></div>}
+            <div className="flex justify-between items-center"><span>Delivery Fee</span><span className="font-bold text-gray-900">RM {fee.toFixed(2)}</span></div>
           </div>
-          <div className="flex justify-between text-lg font-black text-red-600 border-t pt-3 mt-3"><span>Total to Pay Now:</span><span>RM {(fee + food).toFixed(2)}</span></div>
+          <div className="flex justify-between items-center text-xl font-black text-red-600 border-t-2 border-gray-100 pt-4 mt-4 bg-red-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+             <span>Total to Pay Now:</span><span>RM {(fee + food).toFixed(2)}</span>
+          </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border shadow-sm">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Remarks (Optional)</label>
-          <textarea rows="2" className="w-full p-3 border rounded-lg outline-none focus:ring-2 ring-red-400" placeholder="Any special requests or instructions..." value={orderRemarks} onChange={(e) => setOrderRemarks(e.target.value)}></textarea>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-md">
+          <label className="block text-sm font-extrabold text-gray-800 mb-2">Remarks (Optional)</label>
+          <textarea rows="2" className="w-full p-4 border-2 border-gray-200 rounded-xl outline-none focus:border-red-500 focus:ring-4 ring-red-500/20 transition-all font-medium text-gray-700" placeholder="Any special requests or instructions..." value={orderRemarks} onChange={(e) => setOrderRemarks(e.target.value)}></textarea>
         </div>
 
-        <div className="bg-blue-50 p-5 rounded-xl border border-blue-200 shadow-sm">
-          <h3 className="font-bold text-blue-900 mb-4 flex items-center"><CreditCard size={18} className="mr-2" /> Bank Information</h3>
-          <div className="bg-white p-4 rounded-lg border text-center mb-4">
-            <img src="https://i.imgur.com/EMu0dwD.jpeg" alt="QR" className="w-48 mx-auto rounded-lg border mb-2"/>
-            <p className="text-sm font-mono bg-gray-100 py-1 px-2 rounded mt-1 border inline-block">RHB: 1-58093-0012584-0</p>
-            <p className="text-xs text-gray-500 mt-1 font-bold">CHUAH TIONG LI</p>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl border border-blue-200 shadow-md">
+          <h3 className="font-extrabold text-blue-900 mb-5 flex items-center text-lg"><CreditCard size={20} className="mr-2" /> Payment Information</h3>
+          <div className="bg-white p-5 rounded-xl border border-blue-100 text-center mb-5 shadow-sm">
+            <img src="https://i.imgur.com/EMu0dwD.jpeg" alt="QR" className="w-48 mx-auto rounded-xl border-2 border-gray-100 mb-3 shadow-sm"/>
+            <p className="text-sm font-bold font-mono text-gray-700 bg-gray-100 py-1.5 px-3 rounded-lg border border-gray-200 inline-block">RHB: 1-58093-0012584-0</p>
+            <p className="text-xs text-gray-500 mt-2 font-extrabold uppercase tracking-widest">CHUAH TIONG LI</p>
           </div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">Upload Receipt (Required)</label>
+          <label className="block text-sm font-extrabold text-blue-900 mb-3">Upload Receipt (Required)</label>
           <input type="file" id="pay-upload" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setPaymentReceipt)} />
-          <label htmlFor="pay-upload" className="block border-2 border-dashed border-blue-300 bg-white rounded-xl p-4 text-center cursor-pointer">
-            {paymentReceipt ? <div className="text-green-600 font-bold"><CheckCircle size={20} className="mx-auto mb-1"/> Receipt Attached</div> : <div className="text-blue-800 font-bold"><Upload size={20} className="mx-auto mb-1"/> Click to upload</div>}
+          <label htmlFor="pay-upload" className="block border-2 border-dashed border-blue-400 bg-white rounded-2xl p-6 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-500 transition-all shadow-sm">
+            {paymentReceipt ? <div className="text-green-600 font-extrabold"><CheckCircle size={32} className="mx-auto mb-2"/> Receipt Attached</div> : <div className="text-blue-600 font-extrabold"><Upload size={32} className="mx-auto mb-2"/> Tap to attach receipt</div>}
           </label>
         </div>
-        <button onClick={handleCheckout} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Send Order</button>
-        <button onClick={() => setView(restaurant)} className="w-full py-3 text-gray-500 underline">Back</button>
+        <button onClick={handleCheckout} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-extrabold py-5 rounded-xl shadow-lg border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all text-lg">Confirm & Send Order</button>
+        <button onClick={() => setView(restaurant)} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold bg-white rounded-xl shadow-sm border border-gray-200">Back</button>
       </div>
     );
   };
@@ -871,23 +932,37 @@ const UBiteApp = () => {
     const statuses = ['pending', 'received', 'delivering', 'arrived'];
     const idx = statuses.indexOf(current.status);
     return (
-      <div className="p-6 space-y-6 animate-fadeIn text-center">
-        <h2 className="text-2xl font-extrabold border-b pb-4">Live Tracker</h2>
-        <p className="text-gray-500 text-sm font-bold">Order ID: #{current.id}</p>
-        <div className="bg-white p-6 rounded-xl border text-left mt-6 relative">
-          <div className="absolute left-10 top-10 bottom-10 w-1 bg-gray-100"></div>
-          <div className="relative z-10 space-y-8">
-            <div className={`flex items-center ${idx >= 0 ? 'opacity-100' : 'opacity-40'}`}><div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${idx >= 0 ? 'bg-yellow-500' : 'bg-gray-300'}`}><Clock size={20}/></div><div className="ml-4"><p className="font-bold">Order Sent</p></div></div>
-            <div className={`flex items-center ${idx >= 1 ? 'opacity-100' : 'opacity-40'}`}><div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${idx >= 1 ? 'bg-blue-500' : 'bg-gray-300'}`}><Package size={20}/></div><div className="ml-4"><p className="font-bold">Received by Admin</p></div></div>
-            <div className={`flex items-center ${idx >= 2 ? 'opacity-100' : 'opacity-40'}`}><div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${idx >= 2 ? 'bg-purple-500' : 'bg-gray-300'}`}><Truck size={20}/></div><div className="ml-4"><p className="font-bold">Delivering</p></div></div>
-            <div className={`flex items-center ${idx >= 3 ? 'opacity-100' : 'opacity-40'}`}><div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${idx >= 3 ? 'bg-green-500' : 'bg-gray-300'}`}><Home size={20}/></div><div className="ml-4"><p className="font-bold">Arrived</p></div></div>
+      <div className="p-6 space-y-6 animate-fadeIn text-center pb-24">
+        <h2 className="text-2xl font-extrabold text-gray-900 border-b-2 border-red-200 pb-2">Live Tracker</h2>
+        <p className="text-gray-500 text-sm font-bold bg-white inline-block px-4 py-1 rounded-full shadow-sm border border-gray-100">Order ID: #{current.id}</p>
+        
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-lg text-left mt-6 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-600 to-orange-500"></div>
+          <div className="absolute left-12 top-12 bottom-12 w-1 bg-gray-100 rounded-full"></div>
+          <div className="relative z-10 space-y-10">
+            <div className={`flex items-center ${idx >= 0 ? 'opacity-100' : 'opacity-40 grayscale'}`}>
+               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md z-10 ${idx >= 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' : 'bg-gray-300'}`}><Clock size={24}/></div>
+               <div className="ml-5"><p className="font-extrabold text-lg text-gray-900">Order Sent</p><p className="text-xs font-medium text-gray-500 mt-1">Waiting for admin confirmation...</p></div>
+            </div>
+            <div className={`flex items-center ${idx >= 1 ? 'opacity-100' : 'opacity-40 grayscale transition-all'}`}>
+               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md z-10 ${idx >= 1 ? 'bg-gradient-to-br from-blue-400 to-blue-600' : 'bg-gray-300'}`}><Package size={24}/></div>
+               <div className="ml-5"><p className="font-extrabold text-lg text-gray-900">Order Received</p><p className="text-xs font-medium text-gray-500 mt-1">Payment verified. Preparing food.</p></div>
+            </div>
+            <div className={`flex items-center ${idx >= 2 ? 'opacity-100' : 'opacity-40 grayscale transition-all'}`}>
+               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md z-10 ${idx >= 2 ? 'bg-gradient-to-br from-purple-400 to-purple-600' : 'bg-gray-300'}`}><Truck size={24}/></div>
+               <div className="ml-5"><p className="font-extrabold text-lg text-gray-900">Delivering</p><p className="text-xs font-medium text-gray-500 mt-1">Rider is on the way to you!</p></div>
+            </div>
+            <div className={`flex items-center ${idx >= 3 ? 'opacity-100' : 'opacity-40 grayscale transition-all'}`}>
+               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md z-10 ${idx >= 3 ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gray-300'}`}><Home size={24}/></div>
+               <div className="ml-5"><p className="font-extrabold text-lg text-gray-900">Arrived</p><p className="text-xs font-medium text-gray-500 mt-1">Enjoy your meal!</p></div>
+            </div>
           </div>
         </div>
         
         {current.restaurant === 'mcd' && current.mcdOrderType === 'self' && idx < 2 && (
-          <div className="mt-6 bg-yellow-50 p-6 rounded-xl border-2 border-yellow-400 shadow-md">
-            <h3 className="font-bold text-yellow-800 mb-2">Have you ordered on the McD App?</h3>
-            <p className="text-xs text-yellow-700 mb-4">Click the button below ONLY when your McDonald's app says the food is ready for pickup.</p>
+          <div className="mt-8 bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-2xl border border-yellow-200 shadow-md">
+            <h3 className="font-extrabold text-yellow-900 mb-2">Ordered on the McD App?</h3>
+            <p className="text-xs font-medium text-yellow-800 mb-5">Tap below ONLY when your McD app says the food is ready for pickup.</p>
             <button 
               disabled={current.mcdNotified}
               onClick={async () => {
@@ -899,17 +974,17 @@ const UBiteApp = () => {
                    setOrders(orders.map(o => o.id === current.id ? { ...o, mcdNotified: true } : o));
                  }
               }}
-              className={`w-full ${current.mcdNotified ? 'bg-gray-400 cursor-not-allowed text-gray-700' : 'bg-yellow-500 hover:bg-yellow-600 text-black active:scale-95'} font-extrabold py-4 px-2 rounded-xl shadow transition transform flex justify-center items-center`}
-            ><Bike className="mr-2" /> {current.mcdNotified ? 'Rider Notified!' : 'Notify Rider: Food is Ready!'}</button>
+              className={`w-full ${current.mcdNotified ? 'bg-gray-300 cursor-not-allowed text-gray-500 border-b-0 translate-y-1' : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1'} font-extrabold py-5 rounded-xl shadow transition-all flex justify-center items-center text-lg`}
+            ><Bike className="mr-2" /> {current.mcdNotified ? 'Rider Notified!' : 'Notify Rider: Ready!'}</button>
           </div>
         )}
 
-        <div className="mt-6 space-y-3">
-          <button onClick={() => { setView('user_orders'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); setFtItemCount(1); setFtOrderText(''); setOrderRemarks(''); }} className="w-full bg-gray-200 text-gray-800 font-bold py-4 rounded-xl shadow-sm">Back to My Orders</button>
+        <div className="mt-8 space-y-3">
+          <button onClick={() => { setView('user_orders'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); setFtItemCount(1); setFtOrderText(''); setOrderRemarks(''); }} className="w-full bg-white text-gray-700 font-extrabold py-4 rounded-xl shadow-sm border border-gray-200 hover:text-red-600 transition">Back to My Orders</button>
           {idx === 3 && (
-            <div className="flex space-x-2">
-              <button onClick={() => { setView('welcome'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); setFtItemCount(1); setFtOrderText(''); setOrderRemarks(''); }} className="flex-1 bg-gray-900 text-white font-bold py-4 rounded-xl shadow-md">Order Again</button>
-              <button onClick={() => setShowFeedbackModal(true)} className="flex-1 bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md">Leave Feedback</button>
+            <div className="flex space-x-3 pt-2">
+              <button onClick={() => { setView('welcome'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); setFtItemCount(1); setFtOrderText(''); setOrderRemarks(''); }} className="flex-1 bg-gray-900 text-white font-extrabold py-4 rounded-xl shadow-md hover:bg-black transition">Order Again</button>
+              <button onClick={() => setShowFeedbackModal(true)} className="flex-1 bg-blue-600 text-white font-extrabold py-4 rounded-xl shadow-md hover:bg-blue-700 transition">Leave Feedback</button>
             </div>
           )}
         </div>
@@ -922,212 +997,234 @@ const UBiteApp = () => {
     const pastOrders = orders.filter(o => o.status === 'arrived');
 
     return (
-      <div className="p-6 bg-gray-900 min-h-screen text-white pb-32 animate-fadeIn">
-        <div className="flex justify-between items-center border-b border-gray-700 pb-4 mb-4">
-          <h2 className="text-xl font-bold flex items-center text-red-400"><Store className="mr-2" /> Admin Panel</h2>
-          <div className="flex space-x-2">
-            <button onClick={toggleShopStatus} className={`px-3 py-1 rounded text-white font-bold text-xs ${isShopOpen ? 'bg-red-600' : 'bg-green-600'}`}>{isShopOpen ? 'Close Shop' : 'Open Shop'}</button>
-            <button onClick={() => (window.location.hash='', setView('welcome'))} className="text-xs bg-gray-700 px-3 py-1 rounded font-bold">Exit</button>
-          </div>
-        </div>
+      <div className="p-6 bg-gray-900 min-h-screen text-white pb-32 animate-fadeIn relative">
+        {/* Subtle admin background pattern */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-10 pointer-events-none"></div>
         
-        <div className="flex bg-gray-800 p-1 rounded-xl mb-6 overflow-x-auto scrollbar-hide space-x-1">
-          <button onClick={() => setAdminTab('live')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'live' ? 'bg-red-600' : 'text-gray-400'}`}>Live</button>
-          <button onClick={() => setAdminTab('history')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'history' ? 'bg-red-600' : 'text-gray-400'}`}>History</button>
-          <button onClick={() => setAdminTab('summary')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'summary' ? 'bg-red-600' : 'text-gray-400'}`}>Summary</button>
-          <button onClick={() => setAdminTab('feedback')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'feedback' ? 'bg-red-600' : 'text-gray-400'}`}>Feedback</button>
-          <button onClick={() => setAdminTab('users')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'users' ? 'bg-red-600' : 'text-gray-400'}`}>Users</button>
-        </div>
+        <div className="relative z-10">
+          <div className="flex justify-between items-center border-b border-gray-800 pb-5 mb-6">
+            <h2 className="text-2xl font-black flex items-center text-red-500 tracking-tight"><Store className="mr-2" /> Admin Dashboard</h2>
+            <div className="flex space-x-2">
+              <button onClick={toggleShopStatus} className={`px-4 py-2 rounded-lg text-white font-bold text-xs shadow-md transition ${isShopOpen ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>{isShopOpen ? 'Close Shop' : 'Open Shop'}</button>
+              <button onClick={() => (window.location.hash='', setView('welcome'))} className="text-xs bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg font-bold transition">Exit</button>
+            </div>
+          </div>
+          
+          <div className="flex bg-gray-950 p-1.5 rounded-xl mb-8 overflow-x-auto scrollbar-hide space-x-1 shadow-inner border border-gray-800">
+            <button onClick={() => setAdminTab('live')} className={`px-5 py-2.5 text-xs font-extrabold rounded-lg whitespace-nowrap transition-colors ${adminTab === 'live' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}>Live</button>
+            <button onClick={() => setAdminTab('history')} className={`px-5 py-2.5 text-xs font-extrabold rounded-lg whitespace-nowrap transition-colors ${adminTab === 'history' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}>History</button>
+            <button onClick={() => setAdminTab('summary')} className={`px-5 py-2.5 text-xs font-extrabold rounded-lg whitespace-nowrap transition-colors ${adminTab === 'summary' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}>Summary</button>
+            <button onClick={() => setAdminTab('feedback')} className={`px-5 py-2.5 text-xs font-extrabold rounded-lg whitespace-nowrap transition-colors ${adminTab === 'feedback' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}>Feedback</button>
+            <button onClick={() => setAdminTab('users')} className={`px-5 py-2.5 text-xs font-extrabold rounded-lg whitespace-nowrap transition-colors ${adminTab === 'users' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}>Users</button>
+          </div>
 
-        {adminTab === 'live' && (
-          <div className="space-y-4">
-            {live.length === 0 ? <p className="text-center text-gray-500 py-10">No active orders.</p> : live.map(o => (
-              <div key={o.id} className="bg-gray-800 p-5 rounded-xl border border-gray-700">
-                <div className="flex justify-between items-start mb-2 border-b border-gray-700 pb-2">
-                  <div>
-                    <h3 className="font-bold text-yellow-400">#{o.id}</h3>
-                    <div className="flex items-center mt-1">
-                      <p className="text-[10px] text-gray-400">{o.userDetails?.nickname || 'Unknown'} • {o.userDetails?.whatsapp || 'Unknown'}</p>
-                      {o.userDetails?.whatsapp && (
-                        <a href={getWhatsAppLink(o.userDetails.whatsapp)} target="_blank" rel="noopener noreferrer" className="ml-2 bg-green-600 hover:bg-green-500 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center">
-                          <MessageCircle size={10} className="mr-1"/> Chat
-                        </a>
-                      )}
+          {adminTab === 'live' && (
+            <div className="space-y-5">
+              {live.length === 0 ? <div className="text-center bg-gray-800/50 p-10 rounded-2xl border border-gray-800"><p className="text-gray-500 font-bold">No active orders right now.</p></div> : live.map(o => (
+                <div key={o.id} className="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-lg relative overflow-hidden">
+                  {o.mcdNotified && <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[10px] font-bold px-3 py-1 rounded-bl-lg">MCD READY</div>}
+                  <div className="flex justify-between items-start mb-3 border-b border-gray-700 pb-3">
+                    <div>
+                      <h3 className="font-black text-xl text-yellow-400">#{o.id}</h3>
+                      <div className="flex items-center mt-1.5">
+                        <p className="text-xs font-medium text-gray-300">{o.userDetails?.nickname || 'Unknown'} • {o.userDetails?.whatsapp || 'Unknown'}</p>
+                        {o.userDetails?.whatsapp && (
+                          <a href={getWhatsAppLink(o.userDetails.whatsapp)} target="_blank" rel="noopener noreferrer" className="ml-3 bg-green-600 hover:bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center transition shadow-sm">
+                            <MessageCircle size={12} className="mr-1"/> Chat
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <span className="bg-gray-900 border border-gray-700 text-gray-300 text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider">{o.status}</span>
+                  </div>
+                  <div className="text-sm space-y-2 mb-5">
+                    <div className="flex justify-between bg-gray-900/50 p-2 rounded"><span className="text-gray-400">Menu:</span><span className="font-bold text-white">{o.restaurant === 'foodtruck' ? 'FOOD TRUCK' : (o.restaurant || '').toUpperCase()}</span></div>
+                    <div className="flex justify-between bg-gray-900/50 p-2 rounded"><span className="text-gray-400">Total:</span><span className="font-extrabold text-green-400">RM {(o.total || 0).toFixed(2)}</span></div>
+                    
+                    {o.restaurant === 'foodtruck' && o.ftOrderText && <div className="bg-gray-950 p-3 rounded-lg mt-2 border border-gray-800 text-xs text-gray-300 whitespace-pre-line leading-relaxed font-mono">{o.ftOrderText}</div>}
+                    {o.remarks && <div className="mt-3 bg-yellow-900/20 p-3 rounded-lg border border-yellow-900/50"><p className="text-xs text-yellow-400 font-bold mb-1">Remarks:</p><p className="text-sm text-yellow-200 italic">{o.remarks}</p></div>}
+
+                    <div className="flex space-x-3 mt-4 pt-2">
+                      {o.paymentReceipt && <a href={o.paymentReceipt} download={`Pay_${o.id}.jpg`} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center transition"><Download size={14} className="mr-1.5"/> Receipt</a>}
+                      {o.mcdReceipt && <a href={o.mcdReceipt} download={`McD_${o.id}.jpg`} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center transition"><Download size={14} className="mr-1.5"/> McD Image</a>}
                     </div>
                   </div>
-                  <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded uppercase">{o.status}</span>
-                </div>
-                <div className="text-sm space-y-1 mb-4">
-                  <p><b>Restaurant:</b> {o.restaurant === 'foodtruck' ? 'FOOD TRUCK' : (o.restaurant || '').toUpperCase()}</p>
-                  <p><b>Total:</b> RM {(o.total || 0).toFixed(2)}</p>
-                  
-                  {o.restaurant === 'foodtruck' && o.ftOrderText && <div className="bg-gray-900 p-2 rounded mt-2 border border-gray-600 text-xs text-gray-400 whitespace-pre-line">{o.ftOrderText}</div>}
-                  {o.remarks && <div className="mt-2 text-xs text-yellow-300 italic"><b>Remarks:</b> {o.remarks}</div>}
-
-                  <div className="flex space-x-2 mt-2">
-                    {o.paymentReceipt && <a href={o.paymentReceipt} download={`Pay_${o.id}.jpg`} className="bg-gray-700 text-[10px] p-1.5 rounded flex items-center"><Download size={12} className="mr-1"/> Receipt</a>}
-                    {o.mcdReceipt && <a href={o.mcdReceipt} download={`McD_${o.id}.jpg`} className="bg-gray-700 text-[10px] p-1.5 rounded flex items-center"><Download size={12} className="mr-1"/> McD Receipt</a>}
+                  <div className="grid grid-cols-1 gap-3 pt-4 border-t border-gray-700">
+                    {o.status === 'pending' && <button onClick={() => updateOrderStatus(o.id, 'received')} className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-extrabold transition shadow-md">Receive Order</button>}
+                    {o.status === 'received' && <button onClick={() => updateOrderStatus(o.id, 'delivering')} className="w-full bg-purple-600 hover:bg-purple-500 py-4 rounded-xl font-extrabold transition shadow-md">Start Delivery</button>}
+                    {o.status === 'delivering' && <button onClick={() => updateOrderStatus(o.id, 'arrived')} className="w-full bg-green-600 hover:bg-green-500 py-4 rounded-xl font-extrabold transition shadow-[0_0_15px_rgba(34,197,94,0.4)]">Complete (Arrived)</button>}
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-2 pt-3 border-t border-gray-700">
-                  {o.status === 'pending' && <button onClick={() => updateOrderStatus(o.id, 'received')} className="w-full bg-blue-600 py-3 rounded-lg font-bold">Receive Order</button>}
-                  {o.status === 'received' && <button onClick={() => updateOrderStatus(o.id, 'delivering')} className="w-full bg-purple-600 py-3 rounded-lg font-bold">Start Delivery</button>}
-                  {o.status === 'delivering' && <button onClick={() => updateOrderStatus(o.id, 'arrived')} className="w-full bg-green-600 py-3 rounded-lg font-bold shadow-[0_0_10px_rgba(34,197,94,0.3)]">Complete (Arrived)</button>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {adminTab === 'history' && (
-          <div className="space-y-3 relative">
-            <h3 className="font-bold text-gray-400 text-sm mb-2">Completed Orders</h3>
-            {pastOrders.length === 0 ? <div className="text-center text-gray-500 py-10">No completed orders yet.</div> : (
-              pastOrders.map(order => (
-                <div key={order.id} onClick={() => setSelectedHistoryOrder(order)} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center opacity-80 cursor-pointer hover:bg-gray-700 transition">
-                  <div>
-                    <p className="font-bold text-yellow-400">#{order.id} <span className="text-gray-400 text-xs font-normal ml-1">({(order.restaurant || '').toUpperCase()})</span></p>
-                    <p className="text-xs text-gray-500 mt-1">{new Date(order.date).toLocaleDateString()} • {order.userDetails?.nickname || 'Unknown'}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-green-400">RM {(order.total || 0).toFixed(2)}</p>
-                    <p className="text-[10px] text-gray-500 uppercase">View Details</p>
-                  </div>
-                </div>
-              ))
-            )}
-            
-            {selectedHistoryOrder && (
-               <div className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center p-4">
-                  <div className="bg-gray-800 p-6 rounded-xl w-full max-w-sm border border-gray-600 relative shadow-2xl overflow-y-auto max-h-[90vh]">
-                     <button onClick={() => setSelectedHistoryOrder(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-700 p-1 rounded-full"><X size={20}/></button>
-                     <h3 className="text-xl font-bold text-white mb-4">Order #{selectedHistoryOrder.id}</h3>
-                     <div className="space-y-2 text-sm text-gray-300">
-                        <p><b>Date:</b> {new Date(selectedHistoryOrder.date).toLocaleString([], {year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
-                        <p className="flex items-center">
-                          <b>Customer:</b> <span className="ml-1">{selectedHistoryOrder.userDetails?.nickname || 'Unknown'} ({selectedHistoryOrder.userDetails?.whatsapp || 'Unknown'})</span>
-                          {selectedHistoryOrder.userDetails?.whatsapp && (
-                            <a href={getWhatsAppLink(selectedHistoryOrder.userDetails.whatsapp)} target="_blank" rel="noopener noreferrer" className="ml-2 bg-green-600 hover:bg-green-500 text-white text-[10px] px-2 py-1 rounded flex items-center">
-                              <MessageCircle size={12} className="mr-1"/> Chat
-                            </a>
-                          )}
-                        </p>
-                        <p><b>Restaurant:</b> {(selectedHistoryOrder.restaurant || '').toUpperCase()}</p>
-                     </div>
-                     <div className="bg-gray-900 p-3 rounded mt-4 mb-4 border border-gray-700">
-                       <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Order Summary</p>
-                       {selectedHistoryOrder.restaurant === 'mcd' ? (
-                          <p className="text-sm text-white">{selectedHistoryOrder.mcdOrderType === 'help' ? selectedHistoryOrder.mcdOrderText : 'User self-ordered on McD App.'}</p>
-                       ) : selectedHistoryOrder.restaurant === 'foodtruck' ? (
-                          <p className="text-sm text-white whitespace-pre-line">{selectedHistoryOrder.ftOrderText}</p>
-                       ) : (
-                          <ul className="text-sm space-y-1 text-white">
-                            {selectedHistoryOrder.sushiOrderDetails && Object.entries(selectedHistoryOrder.sushiOrderDetails).map(([id, qty]) => {
-                               const item = SUSHI_MENU.find(i => i.id === id);
-                               return <li key={id} className="flex justify-between"><span>{item?.name}</span> <span className="text-red-400 font-bold">x{qty}</span></li>
-                            })}
-                          </ul>
-                       )}
-                       {selectedHistoryOrder.remarks && <div className="mt-3 text-xs text-yellow-300 italic border-t border-gray-700 pt-2"><b>Remarks:</b> {selectedHistoryOrder.remarks}</div>}
-                     </div>
-                     <div className="flex justify-between border-t border-gray-600 pt-3 flex-col space-y-1">
-                        <div className="flex justify-between text-sm"><span className="text-gray-400">Food Total</span><span className="font-bold text-white">RM {(selectedHistoryOrder.foodTotal || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between text-sm"><span className="text-gray-400">Delivery Fee</span><span className="font-bold text-white">RM {(selectedHistoryOrder.deliveryFee || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between text-base mt-2 pt-2 border-t border-gray-700"><span className="text-gray-200 font-bold">Grand Total</span><span className="text-lg font-bold text-green-400">RM {(selectedHistoryOrder.total || 0).toFixed(2)}</span></div>
-                     </div>
-                     {(selectedHistoryOrder.paymentReceipt || selectedHistoryOrder.mcdReceipt) && (
-                        <div className="mt-4 pt-4 border-t border-gray-700 flex space-x-2">
-                          {selectedHistoryOrder.paymentReceipt && (
-                            <a href={selectedHistoryOrder.paymentReceipt} download={`Payment_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded transition">
-                              <Download size={14} className="mr-1"/> Download Payment
-                            </a>
-                          )}
-                          {selectedHistoryOrder.mcdReceipt && (
-                            <a href={selectedHistoryOrder.mcdReceipt} download={`McD_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded transition">
-                              <Download size={14} className="mr-1"/> Download McD
-                            </a>
-                          )}
-                        </div>
-                     )}
-                  </div>
-               </div>
-            )}
-          </div>
-        )}
-        {adminTab === 'summary' && (() => {
-          const now = new Date();
-          const todayDateStr = now.toDateString();
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-          let todayOrders = 0; let todayDeliveryRevenue = 0; let monthOrders = 0; let monthDeliveryRevenue = 0;
-
-          orders.forEach(o => {
-            const oDate = new Date(o.date);
-            if (oDate.toDateString() === todayDateStr) { todayOrders++; todayDeliveryRevenue += o.deliveryFee || 0; }
-            if (oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear) { monthOrders++; monthDeliveryRevenue += o.deliveryFee || 0; }
-          });
-
-          return (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-br from-red-600 to-red-800 p-6 rounded-2xl shadow-lg border border-red-500">
-                <h3 className="text-red-200 font-bold text-sm uppercase tracking-wide mb-1">Today's Delivery Earnings</h3>
-                <p className="text-4xl font-extrabold text-white">RM {todayDeliveryRevenue.toFixed(2)}</p>
-                <div className="mt-4 flex items-center text-red-100 text-sm font-semibold"><Truck size={16} className="mr-1" /> {todayOrders} Deliveries completed today</div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-800 p-5 rounded-xl border border-gray-700"><p className="text-gray-400 text-xs font-bold uppercase mb-1">Monthly Delivery RM</p><p className="text-2xl font-bold text-green-400">RM {monthDeliveryRevenue.toFixed(2)}</p></div>
-                <div className="bg-gray-800 p-5 rounded-xl border border-gray-700"><p className="text-gray-400 text-xs font-bold uppercase mb-1">Monthly Orders</p><p className="text-2xl font-bold text-white">{monthOrders}</p></div>
-              </div>
-              <button onClick={downloadSummary} className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md flex justify-center items-center transition">
-                <Download className="mr-2" size={20} /> Download Monthly Summary
-              </button>
+              ))}
             </div>
-          );
-        })()}
-        
-        {adminTab === 'feedback' && (
-          <div className="space-y-4">
-            <button onClick={downloadFeedback} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md flex justify-center items-center"><Download size={18} className="mr-2"/> Download Feedback CSV</button>
-            {feedbacks.length === 0 ? <p className="text-gray-500 text-center py-10">No feedback yet.</p> : feedbacks.map((f, i) => (
-              <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 relative">
-                <p className="text-xs text-gray-400 absolute top-4 right-4">{new Date(f.date).toLocaleDateString()}</p>
-                <p className="font-bold text-blue-400 mb-1">{f.user}</p>
-                <p className="text-xs text-gray-500 mb-3">{f.phone}</p>
-                <p className="text-gray-200 bg-gray-900 p-3 rounded italic">"{f.text}"</p>
-              </div>
-            ))}
-          </div>
-        )}
+          )}
+          {adminTab === 'history' && (
+            <div className="space-y-4 relative">
+              <h3 className="font-extrabold text-gray-500 text-xs uppercase tracking-widest mb-3">Completed Orders Archive</h3>
+              {pastOrders.length === 0 ? <div className="text-center bg-gray-800/50 p-10 rounded-2xl border border-gray-800"><p className="text-gray-500 font-bold">No completed orders yet.</p></div> : (
+                pastOrders.map(order => (
+                  <div key={order.id} onClick={() => setSelectedHistoryOrder(order)} className="bg-gray-800 p-5 rounded-xl border border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-750 hover:border-gray-500 transition shadow-sm">
+                    <div>
+                      <p className="font-black text-yellow-500 text-lg">#{order.id} <span className="text-gray-500 text-[10px] font-bold ml-2 bg-gray-900 px-2 py-0.5 rounded uppercase">{(order.restaurant || '').toUpperCase()}</span></p>
+                      <p className="text-xs font-medium text-gray-400 mt-1.5">{new Date(order.date).toLocaleDateString()} • <span className="text-gray-300">{order.userDetails?.nickname || 'Unknown'}</span></p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-green-400 text-lg">RM {(order.total || 0).toFixed(2)}</p>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">View Details ➔</p>
+                    </div>
+                  </div>
+                ))
+              )}
+              
+              {selectedHistoryOrder && (
+                 <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-gray-800 p-8 rounded-3xl w-full max-w-sm border border-gray-600 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+                       <button onClick={() => setSelectedHistoryOrder(null)} className="absolute top-5 right-5 text-gray-400 hover:text-white bg-gray-700 p-1.5 rounded-full transition"><X size={20}/></button>
+                       <h3 className="text-2xl font-black text-white mb-6 border-b border-gray-700 pb-3">Order #{selectedHistoryOrder.id}</h3>
+                       
+                       <div className="space-y-3 text-sm text-gray-300 bg-gray-900/50 p-4 rounded-xl border border-gray-700">
+                          <p className="flex justify-between"><span className="text-gray-500">Date:</span> <span className="font-medium text-white">{new Date(selectedHistoryOrder.date).toLocaleString([], {year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}</span></p>
+                          <div className="flex justify-between items-center pt-2 border-t border-gray-800">
+                            <span className="text-gray-500">Customer:</span> 
+                            <div className="text-right">
+                              <span className="font-bold text-white block">{selectedHistoryOrder.userDetails?.nickname || 'Unknown'}</span>
+                              <span className="text-xs text-gray-400 block">{selectedHistoryOrder.userDetails?.whatsapp || 'Unknown'}</span>
+                            </div>
+                          </div>
+                          {selectedHistoryOrder.userDetails?.whatsapp && (
+                            <a href={getWhatsAppLink(selectedHistoryOrder.userDetails.whatsapp)} target="_blank" rel="noopener noreferrer" className="mt-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center justify-center transition w-full">
+                              <MessageCircle size={14} className="mr-2"/> Chat with Customer
+                            </a>
+                          )}
+                       </div>
 
-        {adminTab === 'users' && (() => {
-           const userStats = getUserStats();
-           return (
-             <div className="space-y-4">
-               <div className="bg-gradient-to-br from-indigo-600 to-purple-800 p-6 rounded-2xl shadow-lg">
-                 <h3 className="text-indigo-200 font-bold text-sm uppercase">Total Unique Users</h3>
-                 <p className="text-4xl font-extrabold text-white">{userStats.length}</p>
-               </div>
-               <button onClick={downloadUsers} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md flex justify-center items-center"><Download size={18} className="mr-2"/> Download Users CSV</button>
-               <div className="space-y-3">
-                 {userStats.map((u, i) => (
-                   <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-sm relative">
-                     <button onClick={() => hideUserFromAdmin(u.phone)} className="absolute top-3 right-3 text-gray-500 hover:text-red-500" title="Hide User"><X size={16}/></button>
-                     <div className="flex justify-between border-b border-gray-700 pb-2 mb-2 pr-6">
-                       <span className="font-bold text-white"><User size={14} className="inline mr-1"/>{u.nickname}</span>
-                       <span className="text-gray-400">{u.phone}</span>
+                       <div className="bg-gray-950 p-5 rounded-xl mt-5 mb-5 border border-gray-800 shadow-inner">
+                         <p className="text-[10px] font-black text-gray-500 mb-3 uppercase tracking-widest border-b border-gray-800 pb-2">Order Items</p>
+                         {selectedHistoryOrder.restaurant === 'mcd' ? (
+                            <p className="text-sm font-medium text-gray-300 leading-relaxed">{selectedHistoryOrder.mcdOrderType === 'help' ? selectedHistoryOrder.mcdOrderText : 'User self-ordered on McD App.'}</p>
+                         ) : selectedHistoryOrder.restaurant === 'foodtruck' ? (
+                            <p className="text-sm font-mono text-gray-300 whitespace-pre-line">{selectedHistoryOrder.ftOrderText}</p>
+                         ) : (
+                            <ul className="text-sm space-y-2 text-gray-300">
+                              {selectedHistoryOrder.sushiOrderDetails && Object.entries(selectedHistoryOrder.sushiOrderDetails).map(([id, qty]) => {
+                                 const item = SUSHI_MENU.find(i => i.id === id);
+                                 return <li key={id} className="flex justify-between items-center border-b border-gray-800 pb-1"><span>{item?.name}</span> <span className="text-red-500 font-black bg-red-500/10 px-2 py-0.5 rounded">x{qty}</span></li>
+                              })}
+                            </ul>
+                         )}
+                         {selectedHistoryOrder.remarks && <div className="mt-4 bg-yellow-900/20 p-3 rounded border border-yellow-900/50"><p className="text-[10px] text-yellow-500 font-bold uppercase mb-1">Remarks:</p><p className="text-sm text-yellow-200 italic">{selectedHistoryOrder.remarks}</p></div>}
+                       </div>
+
+                       <div className="space-y-2">
+                          <div className="flex justify-between text-sm bg-gray-900 p-3 rounded-lg"><span className="text-gray-400 font-medium">Food Total</span><span className="font-bold text-white">RM {(selectedHistoryOrder.foodTotal || 0).toFixed(2)}</span></div>
+                          <div className="flex justify-between text-sm bg-gray-900 p-3 rounded-lg"><span className="text-gray-400 font-medium">Delivery Fee</span><span className="font-bold text-white">RM {(selectedHistoryOrder.deliveryFee || 0).toFixed(2)}</span></div>
+                          <div className="flex justify-between text-lg mt-2 p-4 bg-gray-800 border-2 border-green-500/30 rounded-xl"><span className="text-white font-black">Grand Total</span><span className="text-2xl font-black text-green-400">RM {(selectedHistoryOrder.total || 0).toFixed(2)}</span></div>
+                       </div>
+
+                       {(selectedHistoryOrder.paymentReceipt || selectedHistoryOrder.mcdReceipt) && (
+                          <div className="mt-6 flex space-x-3">
+                            {selectedHistoryOrder.paymentReceipt && (
+                              <a href={selectedHistoryOrder.paymentReceipt} download={`Payment_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-3 rounded-xl transition shadow-md">
+                                <Download size={14} className="mr-1.5"/> Payment
+                              </a>
+                            )}
+                            {selectedHistoryOrder.mcdReceipt && (
+                              <a href={selectedHistoryOrder.mcdReceipt} download={`McD_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-3 rounded-xl transition shadow-md">
+                                <Download size={14} className="mr-1.5"/> McD Info
+                              </a>
+                            )}
+                          </div>
+                       )}
+                    </div>
+                 </div>
+              )}
+            </div>
+          )}
+          {adminTab === 'summary' && (() => {
+            const now = new Date();
+            const todayDateStr = now.toDateString();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            let todayOrders = 0; let todayDeliveryRevenue = 0; let monthOrders = 0; let monthDeliveryRevenue = 0;
+
+            orders.forEach(o => {
+              const oDate = new Date(o.date);
+              if (oDate.toDateString() === todayDateStr) { todayOrders++; todayDeliveryRevenue += o.deliveryFee || 0; }
+              if (oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear) { monthOrders++; monthDeliveryRevenue += o.deliveryFee || 0; }
+            });
+
+            return (
+              <div className="space-y-5">
+                <div className="bg-gradient-to-br from-red-600 to-red-800 p-8 rounded-3xl shadow-xl border border-red-500 relative overflow-hidden">
+                  <div className="absolute right-0 top-0 opacity-10"><BarChart3 size={120}/></div>
+                  <h3 className="text-red-200 font-extrabold text-xs uppercase tracking-widest mb-2 relative z-10">Today's Delivery Earnings</h3>
+                  <p className="text-5xl font-black text-white relative z-10">RM {todayDeliveryRevenue.toFixed(2)}</p>
+                  <div className="mt-5 flex items-center text-red-100 text-sm font-bold bg-red-900/30 w-max px-3 py-1.5 rounded-lg relative z-10"><Truck size={16} className="mr-2" /> {todayOrders} Deliveries today</div>
+                </div>
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-md"><p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Monthly Delivery RM</p><p className="text-3xl font-black text-green-400">RM {monthDeliveryRevenue.toFixed(2)}</p></div>
+                  <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-md"><p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Monthly Orders</p><p className="text-3xl font-black text-white">{monthOrders}</p></div>
+                </div>
+                <button onClick={downloadSummary} className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-5 rounded-2xl shadow-lg flex justify-center items-center transition"><Download className="mr-2" size={20} /> Download Monthly Summary CSV</button>
+              </div>
+            );
+          })()}
+          
+          {adminTab === 'feedback' && (
+            <div className="space-y-5">
+              <button onClick={downloadFeedback} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-4 rounded-xl shadow-md flex justify-center items-center transition"><Download size={18} className="mr-2"/> Export Feedback Data</button>
+              {feedbacks.length === 0 ? <div className="text-center bg-gray-800/50 p-10 rounded-2xl border border-gray-800"><p className="text-gray-500 font-bold">No feedback yet.</p></div> : feedbacks.map((f, i) => (
+                <div key={i} className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-md relative">
+                  <p className="text-[10px] font-bold text-gray-500 absolute top-5 right-5 bg-gray-900 px-2 py-1 rounded">{new Date(f.date).toLocaleDateString()}</p>
+                  <p className="font-black text-blue-400 text-lg mb-0.5">{f.user}</p>
+                  <p className="text-xs font-medium text-gray-400 mb-4">{f.phone}</p>
+                  <div className="text-gray-200 bg-gray-900 p-4 rounded-xl italic border-l-4 border-blue-500 font-medium">"{f.text}"</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {adminTab === 'users' && (() => {
+             const userStats = getUserStats();
+             return (
+               <div className="space-y-5">
+                 <div className="bg-gradient-to-br from-indigo-600 to-purple-800 p-8 rounded-3xl shadow-xl relative overflow-hidden">
+                   <div className="absolute right-[-20px] top-[-20px] opacity-10"><Users size={150}/></div>
+                   <h3 className="text-indigo-200 font-extrabold text-xs uppercase tracking-widest mb-2 relative z-10">Total Unique Users</h3>
+                   <p className="text-5xl font-black text-white relative z-10">{userStats.length}</p>
+                 </div>
+                 <button onClick={downloadUsers} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold py-4 rounded-xl shadow-md flex justify-center items-center transition"><Download size={18} className="mr-2"/> Export User Analytics CSV</button>
+                 
+                 <div className="space-y-4">
+                   {userStats.map((u, i) => (
+                     <div key={i} className="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-md relative">
+                       <button onClick={() => hideUserFromAdmin(u.phone)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 transition bg-gray-900 p-1.5 rounded-full" title="Hide User"><X size={14}/></button>
+                       <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-3 pr-8">
+                         <span className="font-black text-white text-lg flex items-center"><User size={16} className="mr-2 text-indigo-400"/>{u.nickname}</span>
+                         <span className="text-xs font-bold text-gray-400 bg-gray-900 px-2 py-1 rounded">{u.phone}</span>
+                       </div>
+                       <div className="grid grid-cols-2 gap-3 text-sm">
+                         <div className="bg-gray-900 p-3 rounded-lg border border-gray-800">
+                           <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Total Orders</p>
+                           <p className="font-black text-white text-xl">{u.orders}</p>
+                         </div>
+                         <div className="bg-gray-900 p-3 rounded-lg border border-gray-800">
+                           <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Total Spent</p>
+                           <p className="font-black text-green-400 text-xl">RM {(u.foodSpent + u.deliverySpent).toFixed(2)}</p>
+                         </div>
+                       </div>
+                       <div className="flex justify-between mt-3 text-xs font-medium text-gray-400 px-1">
+                         <span>Food: RM {u.foodSpent.toFixed(2)}</span>
+                         <span>Delivery: RM {u.deliverySpent.toFixed(2)}</span>
+                       </div>
+                       <div className="mt-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center bg-gray-900 py-1.5 rounded">Last Order: {new Date(u.lastOrder).toLocaleDateString()}</div>
                      </div>
-                     <div className="grid grid-cols-2 gap-2 text-gray-300">
-                       <div>Orders: <span className="font-bold text-white">{u.orders}</span></div>
-                       <div>Total Spent: <span className="font-bold text-green-400">RM {(u.foodSpent + u.deliverySpent).toFixed(2)}</span></div>
-                       <div className="text-xs text-gray-500">Food: RM {u.foodSpent.toFixed(2)}</div>
-                       <div className="text-xs text-gray-500">Del: RM {u.deliverySpent.toFixed(2)}</div>
-                     </div>
-                     <div className="mt-2 text-[10px] text-gray-500">Last Order: {new Date(u.lastOrder).toLocaleString()}</div>
-                   </div>
-                 ))}
+                   ))}
+                 </div>
                </div>
-             </div>
-           );
-        })()}
+             );
+          })()}
+        </div>
       </div>
     );
   };
@@ -1135,54 +1232,63 @@ const UBiteApp = () => {
   const renderSellerPortal = () => {
     const live = orders.filter(o => o.restaurant === 'sushi' && o.status !== 'arrived');
     return (
-      <div className="p-6 bg-gray-900 min-h-screen text-white pb-32 animate-fadeIn">
-        <h2 className="text-xl font-bold border-b border-gray-700 pb-4 mb-4 flex items-center text-red-400"><Store className="mr-2"/> Nuriman Sushi</h2>
-        <div className="space-y-4">
-          {live.length === 0 ? <p className="text-center text-gray-500 py-10">No active orders.</p> : live.map(o => (
-            <div key={o.id} className="bg-gray-800 p-5 rounded-xl border border-gray-700">
-              <div className="flex justify-between border-b border-gray-700 pb-2 mb-3">
-                <h3 className="font-bold">Order #{o.id}</h3>
-                <span className="text-[10px] font-bold bg-yellow-50 text-black px-2 py-1 rounded uppercase tracking-tighter">{o.sellerStatus || 'Pending'}</span>
+      <div className="p-6 bg-gray-900 min-h-screen text-white pb-32 animate-fadeIn relative">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-10 pointer-events-none"></div>
+        <div className="relative z-10">
+          <h2 className="text-2xl font-black border-b border-gray-800 pb-5 mb-6 flex items-center text-red-500 tracking-tight"><Store className="mr-3"/> Nuriman Sushi</h2>
+          <div className="space-y-5">
+            {live.length === 0 ? <div className="text-center bg-gray-800/50 p-10 rounded-2xl border border-gray-800"><p className="text-gray-500 font-bold">No active orders right now.</p></div> : live.map(o => (
+              <div key={o.id} className="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-xl">
+                <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
+                  <h3 className="font-black text-xl text-white">Order #{o.id}</h3>
+                  <span className={`text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider ${o.sellerStatus === 'ready' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : o.sellerStatus === 'preparing' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-gray-900 text-gray-400 border border-gray-700'}`}>{o.sellerStatus || 'Pending'}</span>
+                </div>
+                <ul className="text-sm space-y-2 mb-5 bg-gray-900/50 p-4 rounded-xl border border-gray-800">
+                  {Object.entries(o.sushiOrderDetails || {}).map(([id, q]) => (
+                    <li key={id} className="flex justify-between items-center border-b border-gray-800/50 pb-2 last:border-0 last:pb-0">
+                      <span className="font-medium text-gray-300">{SUSHI_MENU.find(i=>i.id===id)?.name}</span>
+                      <span className="font-black text-red-500 bg-red-500/10 px-2.5 py-1 rounded-md">x{q}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => updateSellerStatus(o.id, 'preparing')} disabled={o.sellerStatus === 'preparing' || o.sellerStatus === 'ready'} className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 py-4 rounded-xl font-extrabold text-xs transition shadow-md disabled:shadow-none">Preparing Food</button>
+                  <button onClick={() => updateSellerStatus(o.id, 'ready')} disabled={o.sellerStatus === 'ready'} className="bg-green-600 hover:bg-green-500 disabled:bg-gray-800 disabled:text-gray-600 py-4 rounded-xl font-extrabold text-xs transition shadow-md disabled:shadow-none">Ready for Pickup</button>
+                </div>
               </div>
-              <ul className="text-sm space-y-1 mb-4">
-                {Object.entries(o.sushiOrderDetails || {}).map(([id, q]) => (
-                  <li key={id} className="flex justify-between"><span>{SUSHI_MENU.find(i=>i.id===id)?.name}</span><span className="font-bold text-red-400">x{q}</span></li>
-                ))}
-              </ul>
-              <div className="grid grid-cols-2 gap-2"><button onClick={() => updateSellerStatus(o.id, 'preparing')} className="bg-blue-600 py-3 rounded-lg font-bold text-xs">Preparing</button><button onClick={() => updateSellerStatus(o.id, 'ready')} className="bg-green-600 py-3 rounded-lg font-bold text-xs">Ready</button></div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex justify-center relative">
-      <div className="w-full max-w-md bg-white sm:rounded-3xl shadow-2xl overflow-hidden relative h-[100dvh] sm:h-[850px]">
+    <div className="min-h-screen bg-gray-50 flex justify-center relative bg-batik font-sans">
+      <div className="w-full max-w-md bg-white sm:rounded-[2rem] shadow-2xl overflow-hidden relative h-[100dvh] sm:h-[850px] border border-gray-200">
         {view !== 'auth' && view !== 'welcome' && view !== 'user_orders' && view !== 'seller' && view !== 'admin' && (
-          <div className="bg-red-600 p-4 flex items-center justify-between text-white shadow-md z-10 relative">
-            <div className="flex items-center font-bold cursor-pointer" onClick={() => secretTap >= 4 ? (setShowSecretModal(true), setSecretTap(0)) : setSecretTap(s => s + 1)}><Bike className="mr-2" size={20} /> UBite</div>
-            <div className="text-xs font-bold bg-red-700 px-2 py-1 rounded uppercase tracking-widest">{view === 'status' ? 'Status' : 'Ordering'}</div>
+          <div className="bg-gradient-to-r from-red-700 to-red-600 p-5 flex items-center justify-between text-white shadow-md z-10 relative border-b-4 border-orange-500">
+            <div className="flex items-center font-black cursor-pointer tracking-tight text-lg" onClick={() => secretTap >= 4 ? (setShowSecretModal(true), setSecretTap(0)) : setSecretTap(s => s + 1)}><Bike className="mr-2" size={22} strokeWidth={2.5} /> UBite</div>
+            <div className="text-[10px] font-black bg-red-900/50 border border-red-500/50 px-3 py-1.5 rounded-full uppercase tracking-widest">{view === 'status' ? 'Status' : 'Ordering'}</div>
           </div>
         )}
-        <div className="overflow-y-auto h-full pb-20 scroll-smooth">
+        <div className="overflow-y-auto h-full pb-24 scroll-smooth bg-white/95 backdrop-blur-sm">
           {view === 'auth' && renderAuth()}
           {view === 'welcome' && renderWelcome()}
           {view === 'user_orders' && renderUserOrders()}
           {view === 'details' && (
-            <div className="p-6 space-y-6 animate-fadeIn">
-              <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Your Information</h2>
-              <div className="space-y-4">
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">Nickname</label><div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden"><span className="p-3 bg-gray-50 text-gray-500"><User size={18}/></span><input type="text" className="w-full p-3 outline-none" value={userDetails.nickname} readOnly /></div></div>
+            <div className="p-6 space-y-6 animate-fadeIn pb-24">
+              <h2 className="text-2xl font-extrabold text-gray-900 border-b-2 border-red-200 pb-2">Confirm Details</h2>
+              <div className="space-y-5 bg-gray-50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <div><label className="block text-sm font-extrabold text-gray-800 mb-2">Nickname</label><div className="flex bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm"><span className="p-4 bg-gray-50 text-gray-400 border-r border-gray-100"><User size={20}/></span><input type="text" className="w-full p-4 outline-none font-bold text-gray-700" value={userDetails.nickname} readOnly /></div></div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">WhatsApp Number</label>
-                  <div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden"><span className="p-3 bg-gray-50 text-gray-500"><Phone size={18}/></span><input type="tel" className="w-full p-3 outline-none" value={userDetails.whatsapp} readOnly /></div>
-                  {!currentUser && <p className="text-xs text-red-500 mt-1 ml-1 font-medium">* Must be an active WhatsApp number</p>}
+                  <label className="block text-sm font-extrabold text-gray-800 mb-2">WhatsApp Number</label>
+                  <div className="flex bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm"><span className="p-4 bg-gray-50 text-gray-400 border-r border-gray-100"><Phone size={20}/></span><input type="tel" className="w-full p-4 outline-none font-bold text-gray-700" value={userDetails.whatsapp} readOnly /></div>
+                  {!currentUser && <p className="text-xs text-red-500 mt-2 ml-1 font-bold">* Must be an active WhatsApp number</p>}
                 </div>
               </div>
-              <button onClick={() => setView('restaurant')} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-md mt-6">Continue to Menu</button>
-              <button onClick={() => setView('welcome')} className="w-full py-3 text-gray-500 underline">Back</button>
+              <button onClick={() => setView('restaurant')} className="w-full bg-gradient-to-r from-gray-900 to-gray-800 hover:from-black hover:to-gray-900 text-white font-extrabold py-5 rounded-xl shadow-lg border-b-4 border-black active:border-b-0 active:translate-y-1 transition-all text-lg">Continue to Menu</button>
+              <button onClick={() => setView('welcome')} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold bg-white rounded-xl shadow-sm border border-gray-200">Back to Home</button>
             </div>
           )}
           {view === 'restaurant' && renderRestaurantSelector()}
@@ -1195,43 +1301,9 @@ const UBiteApp = () => {
           {view === 'seller' && renderSellerPortal()}
         </div>
         {view !== 'auth' && view !== 'seller' && view !== 'admin' && (
-          <a href="https://wa.me/601120365995?text=%5BUBite%5D%2C%20I%20have%20a%20question" target="_blank" rel="noopener" className="absolute bottom-14 right-4 bg-green-500 text-white p-3 rounded-full shadow-lg z-[150]"><MessageCircle size={26} className="animate-pulse" /></a>
+          <a href="https://wa.me/601120365995?text=%5BUBite%5D%2C%20I%20have%20a%20question" target="_blank" rel="noopener noreferrer" className="absolute bottom-10 right-6 bg-gradient-to-tr from-green-500 to-green-400 text-white p-4 rounded-full shadow-[0_10px_25px_-5px_rgba(34,197,94,0.5)] hover:scale-110 active:scale-95 transition-all z-[150]"><MessageCircle size={28} className="animate-pulse" /></a>
         )}
-        {toastMessage && <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[90%] bg-gray-900 text-white font-bold text-center py-3 px-4 rounded-xl shadow-2xl z-[200] text-sm animate-fadeIn">{toastMessage}</div>}
-        
-        {/* Feedback Modal */}
-        {showFeedbackModal && (
-          <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center p-4">
-             <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl animate-fadeIn">
-                <h3 className="font-bold text-lg mb-2 text-gray-800 tracking-tight">Your Feedback</h3>
-                <p className="text-xs text-gray-500 mb-4">Let us know how we did or what we can improve!</p>
-                <textarea rows="4" className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-blue-500" placeholder="Type your feedback here..." value={feedbackText} onChange={e => setFeedbackText(e.target.value)}></textarea>
-                <div className="flex space-x-2">
-                  <button onClick={() => { setShowFeedbackModal(false); setFeedbackText(''); }} className="flex-1 p-3 bg-gray-100 rounded-lg font-bold text-gray-700">Cancel</button>
-                  <button onClick={handleFeedbackSubmit} className="flex-1 p-3 bg-blue-600 rounded-lg font-bold text-white">Submit</button>
-                </div>
-             </div>
-          </div>
-        )}
-
-        {/* Secret Login Modal */}
-        {showSecretModal && (
-          <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center p-4">
-             <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl animate-fadeIn">
-                <h3 className="font-bold text-lg mb-4 text-gray-800 tracking-tight">Staff Login</h3>
-                <input type="text" placeholder="Username" value={staffUsername} onChange={e => setStaffUsername(e.target.value)} className="w-full p-3 border rounded-lg mb-3 outline-none focus:ring-2 ring-red-500" />
-                <input type="password" placeholder="Password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-red-500" />
-                <div className="flex space-x-2">
-                  <button onClick={() => (setShowSecretModal(false), setStaffUsername(''), setStaffPassword(''))} className="flex-1 p-3 bg-gray-100 rounded-lg font-bold text-gray-700">Cancel</button>
-                  <button onClick={() => {
-                     if (staffUsername === 'CTL' && staffPassword === '0516') { setView('admin'); setAdminTab('live'); setShowSecretModal(false); setStaffUsername(''); setStaffPassword(''); }
-                     else if (staffUsername === 'sushi' && staffPassword === 'sushi') { setView('seller'); setSellerTab('live'); setShowSecretModal(false); setStaffUsername(''); setStaffPassword(''); }
-                     else { showToast("Invalid Credentials"); }
-                  }} className="flex-1 p-3 bg-red-600 rounded-lg font-bold text-white">Enter</button>
-                </div>
-             </div>
-          </div>
-        )}
+        {toastMessage && <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[90%] bg-gray-900/95 backdrop-blur-md text-white font-extrabold tracking-wide text-center py-4 px-5 rounded-2xl shadow-2xl z-[200] text-sm animate-fadeIn border border-gray-700">{toastMessage}</div>}
       </div>
     </div>
   );
