@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Bike, MapPin, Phone, User, CheckCircle, Info, Upload, Store, ShieldAlert, Clock, CreditCard, MessageCircle, LayoutDashboard, History, BarChart3, Package, Truck, Home, ChevronRight, Download, X, LogOut, ListOrdered } from 'lucide-react';
+import { ShoppingBag, Bike, MapPin, Phone, User, Users, CheckCircle, Info, Upload, Store, ShieldAlert, Clock, CreditCard, MessageCircle, MessageSquare, LayoutDashboard, History, BarChart3, Package, Truck, Home, ChevronRight, Download, X, LogOut, ListOrdered } from 'lucide-react';
 
 // --- FIREBASE CLOUD SETUP ---
 import { initializeApp } from 'firebase/app';
@@ -187,6 +187,11 @@ const UBiteApp = () => {
   const [authPassword, setAuthPassword] = useState('');
   const [authPhone, setAuthPhone] = useState('');
   
+  // Feedback States
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+
   const [orders, setOrders] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ubite_local_orders');
@@ -202,6 +207,13 @@ const UBiteApp = () => {
   const [mcdOrderText, setMcdOrderText] = useState('');
   const [sushiOrder, setSushiOrder] = useState({});
   const [activeSushiCategory, setActiveSushiCategory] = useState('Gunkan');
+  
+  // Food Truck States
+  const [ftItemCount, setFtItemCount] = useState(1);
+  const [ftOrderText, setFtOrderText] = useState('');
+
+  const [orderRemarks, setOrderRemarks] = useState('');
+
   const [activeUserOrderId, setActiveUserOrderId] = useState(null);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState(null);
   
@@ -280,7 +292,18 @@ const UBiteApp = () => {
       }
     );
 
-    return () => { unsubscribeOrders(); unsubscribeSettings(); };
+    const feedbackRef = collection(db, 'artifacts', appId, 'public', 'data', 'ubite_feedback');
+    const unsubscribeFeedback = onSnapshot(feedbackRef, 
+      (snapshot) => {
+        const f = [];
+        snapshot.forEach(d => f.push({ id: d.id, ...d.data() }));
+        f.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setFeedbacks(f);
+      },
+      (error) => console.error("Feedback Listener Error:", error)
+    );
+
+    return () => { unsubscribeOrders(); unsubscribeSettings(); unsubscribeFeedback(); };
   }, [user]);
 
   useEffect(() => {
@@ -378,17 +401,41 @@ const UBiteApp = () => {
     setView('auth');
   };
 
+  const handleFeedbackSubmit = async () => {
+    if(!feedbackText.trim()) return;
+    const newFeedback = {
+      date: new Date().toISOString(),
+      user: currentUser ? currentUser.username : userDetails.nickname,
+      phone: currentUser ? currentUser.phone : userDetails.whatsapp,
+      text: feedbackText
+    };
+    try {
+      if (db && user) {
+        await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_feedback'), Date.now().toString()), newFeedback);
+      }
+      setShowFeedbackModal(false);
+      setFeedbackText('');
+      showToast('Thank you for your feedback!');
+    } catch(e) {
+      showToast('Failed to submit feedback.');
+    }
+  };
+
   const calculateMcdFee = (items) => {
-    if (items <= 3) return 2.00;
-    if (items <= 6) return 3.50;
-    if (items <= 9) return 5.00;
-    return 6.00;
+    if (items <= 3) return 2.50;
+    if (items <= 6) return 4.00;
+    if (items <= 9) return 5.50;
+    return 6.50;
   };
   const calculateSushiItemsCount = () => Object.values(sushiOrder).reduce((s, q) => s + q, 0);
-  const calculateSushiFee = () => {
-    const count = calculateSushiItemsCount();
-    return count === 0 ? 0 : Math.ceil(count / 3) * 1.50;
+  
+  const calculateDeliveryFee = () => {
+    if (restaurant === 'mcd') return calculateMcdFee(mcdItemCount);
+    if (restaurant === 'foodtruck') return Math.ceil(ftItemCount / 3) * 1.50;
+    if (restaurant === 'sushi') return Math.ceil(calculateSushiItemsCount() / 3) * 1.50;
+    return 0;
   };
+
   const calculateSushiFoodTotal = () => Object.entries(sushiOrder).reduce((t, [id, q]) => {
     const item = SUSHI_MENU.find(i => i.id === id);
     return t + (item ? item.price * q : 0);
@@ -427,8 +474,9 @@ const UBiteApp = () => {
   const handleCheckout = async () => {
     if (!paymentReceipt) { showToast("Please upload payment receipt!"); return; }
     if (restaurant === 'mcd' && mcdOrderType === 'self' && !mcdReceipt) { showToast("Please upload McD screenshot!"); return; }
+    if (restaurant === 'foodtruck' && !ftOrderText.trim()) { showToast("Please type your food truck order!"); return; }
 
-    const deliveryFee = restaurant === 'mcd' ? calculateMcdFee(mcdItemCount) : calculateSushiFee();
+    const deliveryFee = calculateDeliveryFee();
     const foodTotal = restaurant === 'sushi' ? calculateSushiFoodTotal() : 0; 
     const now = new Date();
     const orderId = `${String(now.getDate()).padStart(2,'0')}${String(now.getMonth()+1).padStart(2,'0')}${String(orders.length + 1).padStart(2,'0')}`;
@@ -438,6 +486,8 @@ const UBiteApp = () => {
       id: orderId, date: now.toISOString(), userDetails: finalUserDetails, restaurant, mcdOrderType,
       sushiOrderDetails: restaurant === 'sushi' ? { ...sushiOrder } : null,
       mcdOrderText: restaurant === 'mcd' && mcdOrderType === 'help' ? mcdOrderText : null,
+      ftOrderText: restaurant === 'foodtruck' ? ftOrderText : null,
+      remarks: orderRemarks,
       mcdReceipt, paymentReceipt, deliveryFee, foodTotal, total: deliveryFee + foodTotal,
       status: 'pending', sellerStatus: restaurant === 'sushi' ? 'pending' : null
     };
@@ -488,6 +538,54 @@ const UBiteApp = () => {
     }
   };
 
+  const getUserStats = () => {
+    const stats = {};
+    orders.forEach(o => {
+      const key = o.userDetails.whatsapp;
+      if (!stats[key]) stats[key] = { nickname: o.userDetails.nickname, phone: key, orders: 0, foodSpent: 0, deliverySpent: 0, lastOrder: o.date };
+      stats[key].orders++;
+      stats[key].foodSpent += (o.foodTotal || 0);
+      stats[key].deliverySpent += (o.deliveryFee || 0);
+      if (new Date(o.date) > new Date(stats[key].lastOrder)) stats[key].lastOrder = o.date;
+    });
+    return Object.values(stats).sort((a,b) => b.orders - a.orders);
+  };
+
+  // --- CSV DOWNLOADERS ---
+  const downloadFeedback = () => {
+    let csv = "Date,User,Phone,Feedback\n";
+    feedbacks.forEach(f => { csv += `${new Date(f.date).toLocaleDateString()},${f.user},${f.phone},"${f.text.replace(/"/g, '""')}"\n`; });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `UBite_Feedback.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  const downloadUsers = () => {
+    let csv = "Nickname,Phone,Total Orders,Food Spent (RM),Delivery Spent (RM),Total Spent (RM),Last Order\n";
+    getUserStats().forEach(u => { csv += `${u.nickname},${u.phone},${u.orders},${u.foodSpent.toFixed(2)},${u.deliverySpent.toFixed(2)},${(u.foodSpent+u.deliverySpent).toFixed(2)},${new Date(u.lastOrder).toLocaleDateString()}\n`; });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `UBite_Users_Analytics.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  const downloadSummary = () => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const monthlyOrders = orders.filter(o => new Date(o.date).getMonth() === currentMonth && new Date(o.date).getFullYear() === currentYear);
+    let csv = "Date,Time,Order ID,Customer,Phone,Restaurant,Food Total (RM),Delivery Fee (RM),Grand Total (RM)\n";
+    monthlyOrders.forEach(o => {
+      const d = new Date(o.date);
+      csv += `${d.toLocaleDateString()},${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})},${o.id},${o.userDetails.nickname},${o.userDetails.whatsapp},${o.restaurant},${(o.foodTotal || 0).toFixed(2)},${(o.deliveryFee || 0).toFixed(2)},${o.total.toFixed(2)}\n`;
+    });
+    const totalDeliveryEarnings = monthlyOrders.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+    const totalSales = monthlyOrders.reduce((sum, o) => sum + o.total, 0);
+    csv += `\nMonthly Totals,,,,,,_,${totalDeliveryEarnings.toFixed(2)},${totalSales.toFixed(2)}\n`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `UBite_Summary_${currentMonth + 1}_${currentYear}.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    showToast("Monthly summary downloaded successfully!");
+  };
+
   const showToast = (m) => { setToastMessage(m); setTimeout(() => setToastMessage(''), 3000); };
 
   if (!tailwindLoaded || view === 'loading') return <div className="flex items-center justify-center h-screen bg-gray-50 font-bold">Loading UBite...</div>;
@@ -529,7 +627,10 @@ const UBiteApp = () => {
       <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider"><b>U</b>niversity <b>B</b>ased <b>I</b>nnovative <b>T</b>asty <b>E</b>xpress</p>
 
       {currentUser && (
-        <button onClick={() => setView('user_orders')} className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center"><ListOrdered size={18} className="mr-2" /> Track My Orders</button>
+        <div className="w-full flex space-x-3 mt-4">
+          <button onClick={() => setView('user_orders')} className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center text-sm"><ListOrdered size={16} className="mr-2" /> Track Orders</button>
+          <button onClick={() => setShowFeedbackModal(true)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center text-sm"><MessageSquare size={16} className="mr-2" /> Feedback</button>
+        </div>
       )}
 
       <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200 text-left w-full mt-4">
@@ -545,7 +646,6 @@ const UBiteApp = () => {
         <button onClick={() => setView('details')} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95 text-lg">Start Order</button>
       )}
 
-      {/* Subtle Staff Link */}
       <div className="text-xs text-gray-400 cursor-pointer hover:text-red-500 transition mt-6" onClick={() => setShowSecretModal(true)}>
         Staff Login
       </div>
@@ -567,7 +667,7 @@ const UBiteApp = () => {
                 </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${order.status === 'arrived' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{order.status}</span>
               </div>
-              <div className="text-sm text-gray-600 flex justify-between"><span>{order.restaurant.toUpperCase()}</span><span className="font-bold text-gray-900">RM {order.total.toFixed(2)}</span></div>
+              <div className="text-sm text-gray-600 flex justify-between"><span>{order.restaurant === 'foodtruck' ? 'Food Truck' : order.restaurant.toUpperCase()}</span><span className="font-bold text-gray-900">RM {order.total.toFixed(2)}</span></div>
             </div>
           ))}
         </div>
@@ -588,8 +688,38 @@ const UBiteApp = () => {
           <div className="bg-red-100 p-3 rounded-lg text-red-600 mr-4"><Store size={28} /></div>
           <div><h3 className="text-xl font-bold text-gray-800">Sushi Truck</h3><p className="text-xs text-gray-500 mt-1">No.1 Sushi Truck in KL.</p></div>
         </button>
+        <button onClick={() => { setRestaurant('foodtruck'); setView('foodtruck'); }} className="flex items-center p-4 bg-white border-2 border-orange-200 rounded-xl shadow-sm hover:bg-orange-50 text-left">
+          <div className="bg-orange-100 p-3 rounded-lg text-orange-600 mr-4"><Truck size={28} /></div>
+          <div><h3 className="text-xl font-bold text-gray-800">Other Food Trucks</h3><p className="text-xs text-gray-500 mt-1">Order from any other truck around campus.</p></div>
+        </button>
       </div>
       <button onClick={() => setView('welcome')} className="w-full py-3 text-gray-500 font-semibold underline">Back</button>
+    </div>
+  );
+
+  const renderFoodTruckFlow = () => (
+    <div className="p-6 space-y-6 animate-fadeIn pb-24">
+      <h2 className="text-2xl font-bold text-orange-600 border-b pb-2 flex items-center">Food Truck Order</h2>
+      <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-start shadow-sm">
+        <Info className="mr-3 shrink-0 text-orange-600" size={24} />
+        <div>
+          <span className="font-bold block mb-1">How it works:</span>
+          <p className="text-sm text-orange-800">1. Tell us which food truck, what food, and the quantity.<br/>2. Delivery fee is RM 1.50 per 3 items.<br/>3. You only pay the delivery fee now. We will contact you via WhatsApp for the exact food price later.</p>
+        </div>
+      </div>
+      <div className="bg-white p-4 rounded-xl border space-y-4 shadow-sm">
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-1">Total Number of Items</label>
+          <p className="text-xs text-gray-500 mb-2">Used to calculate delivery fee.</p>
+          <div className="flex items-center border rounded-lg w-max overflow-hidden"><button onClick={() => setFtItemCount(Math.max(1, ftItemCount - 1))} className="px-4 py-2 bg-gray-100 font-bold">-</button><span className="px-6 py-2 font-bold">{ftItemCount}</span><button onClick={() => setFtItemCount(ftItemCount + 1)} className="px-4 py-2 bg-gray-100 font-bold">+</button></div>
+        </div>
+        <div className="border-t pt-4">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Order Details</label>
+          <textarea rows="5" className="w-full p-3 border rounded-lg outline-none focus:ring-2 ring-orange-400" placeholder="e.g. Truck: Takoyaki Abang&#10;Food: 1x Mix Takoyaki (10pcs)&#10;Food: 2x Takoyaki Sotong (5pcs)" value={ftOrderText} onChange={(e) => setFtOrderText(e.target.value)}></textarea>
+        </div>
+      </div>
+      <button onClick={() => setView('checkout')} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl shadow-md transition">Proceed to Payment</button>
+      <button onClick={() => setView('restaurant')} className="w-full py-3 text-gray-500 font-semibold underline">Back</button>
     </div>
   );
 
@@ -666,7 +796,7 @@ const UBiteApp = () => {
   };
 
   const renderCheckout = () => {
-    const fee = restaurant === 'mcd' ? calculateMcdFee(mcdItemCount) : calculateSushiFee();
+    const fee = calculateDeliveryFee();
     const food = restaurant === 'sushi' ? calculateSushiFoodTotal() : 0;
     return (
       <div className="p-6 space-y-6 animate-fadeIn pb-24">
@@ -674,12 +804,18 @@ const UBiteApp = () => {
         <div className="bg-white p-5 rounded-xl border shadow-sm space-y-3">
           <h3 className="font-bold border-b pb-2 flex items-center"><ShoppingBag size={18} className="mr-2 text-gray-500" /> Order Summary</h3>
           <div className="text-sm space-y-2">
-            <div className="flex justify-between"><span>Restaurant</span><span className="font-semibold">{restaurant.toUpperCase()}</span></div>
+            <div className="flex justify-between"><span>Restaurant</span><span className="font-semibold">{restaurant === 'foodtruck' ? 'Food Truck' : restaurant.toUpperCase()}</span></div>
             {restaurant === 'sushi' && <div className="flex justify-between pt-2 border-t"><span>Food Price</span><span>RM {food.toFixed(2)}</span></div>}
             <div className="flex justify-between"><span>Delivery Fee</span><span>RM {fee.toFixed(2)}</span></div>
           </div>
-          <div className="flex justify-between text-lg font-black text-red-600 border-t pt-3 mt-3"><span>Total to Pay:</span><span>RM {(fee + food).toFixed(2)}</span></div>
+          <div className="flex justify-between text-lg font-black text-red-600 border-t pt-3 mt-3"><span>Total to Pay Now:</span><span>RM {(fee + food).toFixed(2)}</span></div>
         </div>
+
+        <div className="bg-white p-4 rounded-xl border shadow-sm">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Remarks (Optional)</label>
+          <textarea rows="2" className="w-full p-3 border rounded-lg outline-none focus:ring-2 ring-red-400" placeholder="Any special requests or instructions..." value={orderRemarks} onChange={(e) => setOrderRemarks(e.target.value)}></textarea>
+        </div>
+
         <div className="bg-blue-50 p-5 rounded-xl border border-blue-200 shadow-sm">
           <h3 className="font-bold text-blue-900 mb-4 flex items-center"><CreditCard size={18} className="mr-2" /> Bank Information</h3>
           <div className="bg-white p-4 rounded-lg border text-center mb-4">
@@ -739,8 +875,13 @@ const UBiteApp = () => {
         )}
 
         <div className="mt-6 space-y-3">
-          <button onClick={() => { setView('user_orders'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); }} className="w-full bg-gray-200 text-gray-800 font-bold py-4 rounded-xl shadow-sm">Back to My Orders</button>
-          {idx === 3 && <button onClick={() => { setView('welcome'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); }} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-md">Order Again</button>}
+          <button onClick={() => { setView('user_orders'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); setFtItemCount(1); setFtOrderText(''); setOrderRemarks(''); }} className="w-full bg-gray-200 text-gray-800 font-bold py-4 rounded-xl shadow-sm">Back to My Orders</button>
+          {idx === 3 && (
+            <div className="flex space-x-2">
+              <button onClick={() => { setView('welcome'); setActiveUserOrderId(null); setSushiOrder({}); setPaymentReceipt(null); setMcdReceipt(null); setFtItemCount(1); setFtOrderText(''); setOrderRemarks(''); }} className="flex-1 bg-gray-900 text-white font-bold py-4 rounded-xl shadow-md">Order Again</button>
+              <button onClick={() => setShowFeedbackModal(true)} className="flex-1 bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md">Leave Feedback</button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -757,11 +898,15 @@ const UBiteApp = () => {
             <button onClick={() => (window.location.hash='', setView('welcome'))} className="text-xs bg-gray-700 px-3 py-1 rounded font-bold">Exit</button>
           </div>
         </div>
-        <div className="flex bg-gray-800 p-1 rounded-xl mb-6">
-          <button onClick={() => setAdminTab('live')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${adminTab === 'live' ? 'bg-red-600' : 'text-gray-400'}`}>Live</button>
-          <button onClick={() => setAdminTab('history')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${adminTab === 'history' ? 'bg-red-600' : 'text-gray-400'}`}>History</button>
-          <button onClick={() => setAdminTab('summary')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${adminTab === 'summary' ? 'bg-red-600' : 'text-gray-400'}`}>Summary</button>
+        
+        <div className="flex bg-gray-800 p-1 rounded-xl mb-6 overflow-x-auto scrollbar-hide space-x-1">
+          <button onClick={() => setAdminTab('live')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'live' ? 'bg-red-600' : 'text-gray-400'}`}>Live</button>
+          <button onClick={() => setAdminTab('history')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'history' ? 'bg-red-600' : 'text-gray-400'}`}>History</button>
+          <button onClick={() => setAdminTab('summary')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'summary' ? 'bg-red-600' : 'text-gray-400'}`}>Summary</button>
+          <button onClick={() => setAdminTab('feedback')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'feedback' ? 'bg-red-600' : 'text-gray-400'}`}>Feedback</button>
+          <button onClick={() => setAdminTab('users')} className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap ${adminTab === 'users' ? 'bg-red-600' : 'text-gray-400'}`}>Users</button>
         </div>
+
         {adminTab === 'live' && (
           <div className="space-y-4">
             {live.length === 0 ? <p className="text-center text-gray-500 py-10">No active orders.</p> : live.map(o => (
@@ -771,11 +916,15 @@ const UBiteApp = () => {
                   <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded uppercase">{o.status}</span>
                 </div>
                 <div className="text-sm space-y-1 mb-4">
-                  <p><b>Restaurant:</b> {o.restaurant.toUpperCase()}</p>
+                  <p><b>Restaurant:</b> {o.restaurant === 'foodtruck' ? 'FOOD TRUCK' : o.restaurant.toUpperCase()}</p>
                   <p><b>Total:</b> RM {o.total.toFixed(2)}</p>
+                  
+                  {o.restaurant === 'foodtruck' && o.ftOrderText && <div className="bg-gray-900 p-2 rounded mt-2 border border-gray-600 text-xs text-gray-400 whitespace-pre-line">{o.ftOrderText}</div>}
+                  {o.remarks && <div className="mt-2 text-xs text-yellow-300 italic"><b>Remarks:</b> {o.remarks}</div>}
+
                   <div className="flex space-x-2 mt-2">
-                    {o.paymentReceipt && <a href={o.paymentReceipt} download={`Pay_${o.id}.jpg`} className="bg-gray-700 text-[10px] p-1.5 rounded flex items-center"><Download size={12} className="mr-1"/> Download Receipt</a>}
-                    {o.mcdReceipt && <a href={o.mcdReceipt} download={`McD_${o.id}.jpg`} className="bg-gray-700 text-[10px] p-1.5 rounded flex items-center"><Download size={12} className="mr-1"/> Download McD</a>}
+                    {o.paymentReceipt && <a href={o.paymentReceipt} download={`Pay_${o.id}.jpg`} className="bg-gray-700 text-[10px] p-1.5 rounded flex items-center"><Download size={12} className="mr-1"/> Receipt</a>}
+                    {o.mcdReceipt && <a href={o.mcdReceipt} download={`McD_${o.id}.jpg`} className="bg-gray-700 text-[10px] p-1.5 rounded flex items-center"><Download size={12} className="mr-1"/> McD Receipt</a>}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-2 pt-3 border-t border-gray-700">
@@ -787,6 +936,148 @@ const UBiteApp = () => {
             ))}
           </div>
         )}
+        {adminTab === 'history' && (
+          <div className="space-y-3 relative">
+            <h3 className="font-bold text-gray-400 text-sm mb-2">Completed Orders</h3>
+            {pastOrders.length === 0 ? <div className="text-center text-gray-500 py-10">No completed orders yet.</div> : (
+              pastOrders.map(order => (
+                <div key={order.id} onClick={() => setSelectedHistoryOrder(order)} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center opacity-80 cursor-pointer hover:bg-gray-700 transition">
+                  <div>
+                    <p className="font-bold text-yellow-400">#{order.id} <span className="text-gray-400 text-xs font-normal ml-1">({order.restaurant.toUpperCase()})</span></p>
+                    <p className="text-xs text-gray-500 mt-1">{new Date(order.date).toLocaleDateString()} • {order.userDetails.nickname}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-green-400">RM {order.total.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 uppercase">View Details</p>
+                  </div>
+                </div>
+              ))
+            )}
+            
+            {selectedHistoryOrder && (
+               <div className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center p-4">
+                  <div className="bg-gray-800 p-6 rounded-xl w-full max-w-sm border border-gray-600 relative shadow-2xl overflow-y-auto max-h-[90vh]">
+                     <button onClick={() => setSelectedHistoryOrder(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-gray-700 p-1 rounded-full"><X size={20}/></button>
+                     <h3 className="text-xl font-bold text-white mb-4">Order #{selectedHistoryOrder.id}</h3>
+                     <div className="space-y-2 text-sm text-gray-300">
+                        <p><b>Date:</b> {new Date(selectedHistoryOrder.date).toLocaleString([], {year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
+                        <p><b>Customer:</b> {selectedHistoryOrder.userDetails.nickname} ({selectedHistoryOrder.userDetails.whatsapp})</p>
+                        <p><b>Restaurant:</b> {selectedHistoryOrder.restaurant.toUpperCase()}</p>
+                     </div>
+                     <div className="bg-gray-900 p-3 rounded mt-4 mb-4 border border-gray-700">
+                       <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Order Summary</p>
+                       {selectedHistoryOrder.restaurant === 'mcd' ? (
+                          <p className="text-sm text-white">{selectedHistoryOrder.mcdOrderType === 'help' ? selectedHistoryOrder.mcdOrderText : 'User self-ordered on McD App.'}</p>
+                       ) : selectedHistoryOrder.restaurant === 'foodtruck' ? (
+                          <p className="text-sm text-white whitespace-pre-line">{selectedHistoryOrder.ftOrderText}</p>
+                       ) : (
+                          <ul className="text-sm space-y-1 text-white">
+                            {selectedHistoryOrder.sushiOrderDetails && Object.entries(selectedHistoryOrder.sushiOrderDetails).map(([id, qty]) => {
+                               const item = SUSHI_MENU.find(i => i.id === id);
+                               return <li key={id} className="flex justify-between"><span>{item?.name}</span> <span className="text-red-400 font-bold">x{qty}</span></li>
+                            })}
+                          </ul>
+                       )}
+                       {selectedHistoryOrder.remarks && <div className="mt-3 text-xs text-yellow-300 italic border-t border-gray-700 pt-2"><b>Remarks:</b> {selectedHistoryOrder.remarks}</div>}
+                     </div>
+                     <div className="flex justify-between border-t border-gray-600 pt-3 flex-col space-y-1">
+                        <div className="flex justify-between text-sm"><span className="text-gray-400">Food Total</span><span className="font-bold text-white">RM {(selectedHistoryOrder.foodTotal || 0).toFixed(2)}</span></div>
+                        <div className="flex justify-between text-sm"><span className="text-gray-400">Delivery Fee</span><span className="font-bold text-white">RM {(selectedHistoryOrder.deliveryFee || 0).toFixed(2)}</span></div>
+                        <div className="flex justify-between text-base mt-2 pt-2 border-t border-gray-700"><span className="text-gray-200 font-bold">Grand Total</span><span className="text-lg font-bold text-green-400">RM {selectedHistoryOrder.total.toFixed(2)}</span></div>
+                     </div>
+                     {(selectedHistoryOrder.paymentReceipt || selectedHistoryOrder.mcdReceipt) && (
+                        <div className="mt-4 pt-4 border-t border-gray-700 flex space-x-2">
+                          {selectedHistoryOrder.paymentReceipt && (
+                            <a href={selectedHistoryOrder.paymentReceipt} download={`Payment_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded transition">
+                              <Download size={14} className="mr-1"/> Download Payment
+                            </a>
+                          )}
+                          {selectedHistoryOrder.mcdReceipt && (
+                            <a href={selectedHistoryOrder.mcdReceipt} download={`McD_${selectedHistoryOrder.id}.jpg`} className="flex-1 flex justify-center items-center bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 rounded transition">
+                              <Download size={14} className="mr-1"/> Download McD
+                            </a>
+                          )}
+                        </div>
+                     )}
+                  </div>
+               </div>
+            )}
+          </div>
+        )}
+        {adminTab === 'summary' && (() => {
+          const now = new Date();
+          const todayDateStr = now.toDateString();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+          let todayOrders = 0; let todayDeliveryRevenue = 0; let monthOrders = 0; let monthDeliveryRevenue = 0;
+
+          orders.forEach(o => {
+            const oDate = new Date(o.date);
+            if (oDate.toDateString() === todayDateStr) { todayOrders++; todayDeliveryRevenue += o.deliveryFee || 0; }
+            if (oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear) { monthOrders++; monthDeliveryRevenue += o.deliveryFee || 0; }
+          });
+
+          return (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-br from-red-600 to-red-800 p-6 rounded-2xl shadow-lg border border-red-500">
+                <h3 className="text-red-200 font-bold text-sm uppercase tracking-wide mb-1">Today's Delivery Earnings</h3>
+                <p className="text-4xl font-extrabold text-white">RM {todayDeliveryRevenue.toFixed(2)}</p>
+                <div className="mt-4 flex items-center text-red-100 text-sm font-semibold"><Truck size={16} className="mr-1" /> {todayOrders} Deliveries completed today</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-800 p-5 rounded-xl border border-gray-700"><p className="text-gray-400 text-xs font-bold uppercase mb-1">Monthly Delivery RM</p><p className="text-2xl font-bold text-green-400">RM {monthDeliveryRevenue.toFixed(2)}</p></div>
+                <div className="bg-gray-800 p-5 rounded-xl border border-gray-700"><p className="text-gray-400 text-xs font-bold uppercase mb-1">Monthly Orders</p><p className="text-2xl font-bold text-white">{monthOrders}</p></div>
+              </div>
+              <button onClick={downloadSummary} className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md flex justify-center items-center transition">
+                <Download className="mr-2" size={20} /> Download Monthly Summary
+              </button>
+            </div>
+          );
+        })()}
+        
+        {adminTab === 'feedback' && (
+          <div className="space-y-4">
+            <button onClick={downloadFeedback} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md flex justify-center items-center"><Download size={18} className="mr-2"/> Download Feedback CSV</button>
+            {feedbacks.length === 0 ? <p className="text-gray-500 text-center py-10">No feedback yet.</p> : feedbacks.map((f, i) => (
+              <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 relative">
+                <p className="text-xs text-gray-400 absolute top-4 right-4">{new Date(f.date).toLocaleDateString()}</p>
+                <p className="font-bold text-blue-400 mb-1">{f.user}</p>
+                <p className="text-xs text-gray-500 mb-3">{f.phone}</p>
+                <p className="text-gray-200 bg-gray-900 p-3 rounded italic">"{f.text}"</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {adminTab === 'users' && (() => {
+           const userStats = getUserStats();
+           return (
+             <div className="space-y-4">
+               <div className="bg-gradient-to-br from-indigo-600 to-purple-800 p-6 rounded-2xl shadow-lg">
+                 <h3 className="text-indigo-200 font-bold text-sm uppercase">Total Unique Users</h3>
+                 <p className="text-4xl font-extrabold text-white">{userStats.length}</p>
+               </div>
+               <button onClick={downloadUsers} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md flex justify-center items-center"><Download size={18} className="mr-2"/> Download Users CSV</button>
+               <div className="space-y-3">
+                 {userStats.map((u, i) => (
+                   <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-sm">
+                     <div className="flex justify-between border-b border-gray-700 pb-2 mb-2">
+                       <span className="font-bold text-white"><User size={14} className="inline mr-1"/>{u.nickname}</span>
+                       <span className="text-gray-400">{u.phone}</span>
+                     </div>
+                     <div className="grid grid-cols-2 gap-2 text-gray-300">
+                       <div>Orders: <span className="font-bold text-white">{u.orders}</span></div>
+                       <div>Total Spent: <span className="font-bold text-green-400">RM {(u.foodSpent + u.deliverySpent).toFixed(2)}</span></div>
+                       <div className="text-xs text-gray-500">Food: RM {u.foodSpent.toFixed(2)}</div>
+                       <div className="text-xs text-gray-500">Del: RM {u.deliverySpent.toFixed(2)}</div>
+                     </div>
+                     <div className="mt-2 text-[10px] text-gray-500">Last Order: {new Date(u.lastOrder).toLocaleString()}</div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+           );
+        })()}
       </div>
     );
   };
@@ -842,6 +1133,7 @@ const UBiteApp = () => {
           )}
           {view === 'restaurant' && renderRestaurantSelector()}
           {view === 'mcd' && renderMcdFlow()}
+          {view === 'foodtruck' && renderFoodTruckFlow()}
           {view === 'sushi' && renderSushiFlow()}
           {view === 'checkout' && renderCheckout()}
           {view === 'status' && renderStatus()}
@@ -852,6 +1144,23 @@ const UBiteApp = () => {
           <a href="https://wa.me/601120365995?text=%5BUBite%5D%2C%20I%20have%20a%20question" target="_blank" rel="noopener" className="absolute bottom-14 right-4 bg-green-500 text-white p-3 rounded-full shadow-lg z-[150]"><MessageCircle size={26} className="animate-pulse" /></a>
         )}
         {toastMessage && <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[90%] bg-gray-900 text-white font-bold text-center py-3 px-4 rounded-xl shadow-2xl z-[200] text-sm animate-fadeIn">{toastMessage}</div>}
+        
+        {/* Feedback Modal */}
+        {showFeedbackModal && (
+          <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center p-4">
+             <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl animate-fadeIn">
+                <h3 className="font-bold text-lg mb-2 text-gray-800 tracking-tight">Your Feedback</h3>
+                <p className="text-xs text-gray-500 mb-4">Let us know how we did or what we can improve!</p>
+                <textarea rows="4" className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-blue-500" placeholder="Type your feedback here..." value={feedbackText} onChange={e => setFeedbackText(e.target.value)}></textarea>
+                <div className="flex space-x-2">
+                  <button onClick={() => { setShowFeedbackModal(false); setFeedbackText(''); }} className="flex-1 p-3 bg-gray-100 rounded-lg font-bold text-gray-700">Cancel</button>
+                  <button onClick={handleFeedbackSubmit} className="flex-1 p-3 bg-blue-600 rounded-lg font-bold text-white">Submit</button>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* Secret Login Modal */}
         {showSecretModal && (
           <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center p-4">
              <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl animate-fadeIn">
