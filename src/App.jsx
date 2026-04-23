@@ -174,6 +174,8 @@ const UBiteApp = () => {
   // --- APP STATE ---
   const [isShopOpen, setIsShopOpen] = useState(true);
   const [isShopLoaded, setIsShopLoaded] = useState(false);
+  const [hiddenUsers, setHiddenUsers] = useState([]);
+  
   const [view, setView] = useState('loading');
   const [adminTab, setAdminTab] = useState('live'); 
   const [sellerTab, setSellerTab] = useState('live'); 
@@ -280,6 +282,7 @@ const UBiteApp = () => {
         snapshot.forEach(d => {
           if (d.id === 'store_status') {
             setIsShopOpen(d.data().isOpen);
+            setHiddenUsers(d.data().hiddenUsers || []);
             foundStatus = true;
           }
         });
@@ -538,11 +541,33 @@ const UBiteApp = () => {
     }
   };
 
+  const hideUserFromAdmin = async (phone) => {
+    try {
+      const newHidden = [...hiddenUsers, phone];
+      if (db && user) {
+        await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'settings'), 'store_status'), { hiddenUsers: newHidden }, { merge: true });
+      } else {
+        setHiddenUsers(newHidden);
+      }
+      showToast("User removed from list");
+    } catch (error) {
+      showToast("Failed to remove user");
+    }
+  };
+
+  const getWhatsAppLink = (phone) => {
+    if (!phone) return '#';
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) cleaned = '6' + cleaned;
+    return `https://wa.me/${cleaned}`;
+  };
+
   const getUserStats = () => {
     const stats = {};
     orders.forEach(o => {
-      const key = o.userDetails.whatsapp;
-      if (!stats[key]) stats[key] = { nickname: o.userDetails.nickname, phone: key, orders: 0, foodSpent: 0, deliverySpent: 0, lastOrder: o.date };
+      const key = o.userDetails?.whatsapp;
+      if (!key || hiddenUsers.includes(key)) return;
+      if (!stats[key]) stats[key] = { nickname: o.userDetails?.nickname || 'Unknown', phone: key, orders: 0, foodSpent: 0, deliverySpent: 0, lastOrder: o.date };
       stats[key].orders++;
       stats[key].foodSpent += (o.foodTotal || 0);
       stats[key].deliverySpent += (o.deliveryFee || 0);
@@ -575,10 +600,10 @@ const UBiteApp = () => {
     let csv = "Date,Time,Order ID,Customer,Phone,Restaurant,Food Total (RM),Delivery Fee (RM),Grand Total (RM)\n";
     monthlyOrders.forEach(o => {
       const d = new Date(o.date);
-      csv += `${d.toLocaleDateString()},${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})},${o.id},${o.userDetails.nickname},${o.userDetails.whatsapp},${o.restaurant},${(o.foodTotal || 0).toFixed(2)},${(o.deliveryFee || 0).toFixed(2)},${o.total.toFixed(2)}\n`;
+      csv += `${d.toLocaleDateString()},${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})},${o.id},${o.userDetails?.nickname || 'Unknown'},${o.userDetails?.whatsapp || 'Unknown'},${o.restaurant},${(o.foodTotal || 0).toFixed(2)},${(o.deliveryFee || 0).toFixed(2)},${(o.total || 0).toFixed(2)}\n`;
     });
     const totalDeliveryEarnings = monthlyOrders.reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
-    const totalSales = monthlyOrders.reduce((sum, o) => sum + o.total, 0);
+    const totalSales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     csv += `\nMonthly Totals,,,,,,_,${totalDeliveryEarnings.toFixed(2)},${totalSales.toFixed(2)}\n`;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -599,7 +624,12 @@ const UBiteApp = () => {
       
       <div className="w-full space-y-4">
         <input type="text" placeholder="Username" value={authUsername} onChange={e => setAuthUsername(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
-        {authMode === 'signup' && <input type="tel" placeholder="WhatsApp Number" value={authPhone} onChange={e => setAuthPhone(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>}
+        {authMode === 'signup' && (
+          <div className="w-full">
+            <input type="tel" placeholder="WhatsApp Number" value={authPhone} onChange={e => setAuthPhone(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
+            <p className="text-xs text-red-500 mt-1 ml-1 text-left font-medium">* Must be an active WhatsApp number</p>
+          </div>
+        )}
         <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-red-500"/>
         <button onClick={authMode === 'login' ? handleLogin : handleSignUp} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg transition active:scale-95">{authMode === 'login' ? 'Login' : 'Create Account'}</button>
       </div>
@@ -653,7 +683,7 @@ const UBiteApp = () => {
   );
 
   const renderUserOrders = () => {
-    const myOrders = orders.filter(o => o.userDetails.nickname === currentUser?.username);
+    const myOrders = orders.filter(o => o.userDetails?.nickname === currentUser?.username);
     return (
       <div className="p-6 animate-fadeIn bg-gray-50 min-h-screen pb-24">
         <h2 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6 flex items-center"><ListOrdered className="mr-2"/> My Orders</h2>
@@ -667,7 +697,7 @@ const UBiteApp = () => {
                 </div>
                 <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${order.status === 'arrived' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{order.status}</span>
               </div>
-              <div className="text-sm text-gray-600 flex justify-between"><span>{order.restaurant === 'foodtruck' ? 'Food Truck' : order.restaurant.toUpperCase()}</span><span className="font-bold text-gray-900">RM {order.total.toFixed(2)}</span></div>
+              <div className="text-sm text-gray-600 flex justify-between"><span>{order.restaurant === 'foodtruck' ? 'Food Truck' : (order.restaurant || '').toUpperCase()}</span><span className="font-bold text-gray-900">RM {(order.total || 0).toFixed(2)}</span></div>
             </div>
           ))}
         </div>
@@ -862,7 +892,7 @@ const UBiteApp = () => {
               disabled={current.mcdNotified}
               onClick={async () => {
                  showToast("Notification sent! Rider is heading to the counter.");
-                 notifyPhone(`🏃 URGENT:\nMcD User ${current.userDetails.nickname} says food is ready for pickup!`);
+                 notifyPhone(`🏃 URGENT:\nMcD User ${current.userDetails?.nickname} says food is ready for pickup!`);
                  if (db && user) {
                    await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(current.id)), { mcdNotified: true });
                  } else {
@@ -889,6 +919,8 @@ const UBiteApp = () => {
 
   const renderAdminPortal = () => {
     const live = orders.filter(o => o.status !== 'arrived');
+    const pastOrders = orders.filter(o => o.status === 'arrived');
+
     return (
       <div className="p-6 bg-gray-900 min-h-screen text-white pb-32 animate-fadeIn">
         <div className="flex justify-between items-center border-b border-gray-700 pb-4 mb-4">
@@ -912,12 +944,22 @@ const UBiteApp = () => {
             {live.length === 0 ? <p className="text-center text-gray-500 py-10">No active orders.</p> : live.map(o => (
               <div key={o.id} className="bg-gray-800 p-5 rounded-xl border border-gray-700">
                 <div className="flex justify-between items-start mb-2 border-b border-gray-700 pb-2">
-                  <div><h3 className="font-bold text-yellow-400">#{o.id}</h3><p className="text-[10px] text-gray-400">{o.userDetails.nickname} • {o.userDetails.whatsapp}</p></div>
+                  <div>
+                    <h3 className="font-bold text-yellow-400">#{o.id}</h3>
+                    <div className="flex items-center mt-1">
+                      <p className="text-[10px] text-gray-400">{o.userDetails?.nickname || 'Unknown'} • {o.userDetails?.whatsapp || 'Unknown'}</p>
+                      {o.userDetails?.whatsapp && (
+                        <a href={getWhatsAppLink(o.userDetails.whatsapp)} target="_blank" rel="noopener noreferrer" className="ml-2 bg-green-600 hover:bg-green-500 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center">
+                          <MessageCircle size={10} className="mr-1"/> Chat
+                        </a>
+                      )}
+                    </div>
+                  </div>
                   <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded uppercase">{o.status}</span>
                 </div>
                 <div className="text-sm space-y-1 mb-4">
-                  <p><b>Restaurant:</b> {o.restaurant === 'foodtruck' ? 'FOOD TRUCK' : o.restaurant.toUpperCase()}</p>
-                  <p><b>Total:</b> RM {o.total.toFixed(2)}</p>
+                  <p><b>Restaurant:</b> {o.restaurant === 'foodtruck' ? 'FOOD TRUCK' : (o.restaurant || '').toUpperCase()}</p>
+                  <p><b>Total:</b> RM {(o.total || 0).toFixed(2)}</p>
                   
                   {o.restaurant === 'foodtruck' && o.ftOrderText && <div className="bg-gray-900 p-2 rounded mt-2 border border-gray-600 text-xs text-gray-400 whitespace-pre-line">{o.ftOrderText}</div>}
                   {o.remarks && <div className="mt-2 text-xs text-yellow-300 italic"><b>Remarks:</b> {o.remarks}</div>}
@@ -943,11 +985,11 @@ const UBiteApp = () => {
               pastOrders.map(order => (
                 <div key={order.id} onClick={() => setSelectedHistoryOrder(order)} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center opacity-80 cursor-pointer hover:bg-gray-700 transition">
                   <div>
-                    <p className="font-bold text-yellow-400">#{order.id} <span className="text-gray-400 text-xs font-normal ml-1">({order.restaurant.toUpperCase()})</span></p>
-                    <p className="text-xs text-gray-500 mt-1">{new Date(order.date).toLocaleDateString()} • {order.userDetails.nickname}</p>
+                    <p className="font-bold text-yellow-400">#{order.id} <span className="text-gray-400 text-xs font-normal ml-1">({(order.restaurant || '').toUpperCase()})</span></p>
+                    <p className="text-xs text-gray-500 mt-1">{new Date(order.date).toLocaleDateString()} • {order.userDetails?.nickname || 'Unknown'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-green-400">RM {order.total.toFixed(2)}</p>
+                    <p className="font-bold text-green-400">RM {(order.total || 0).toFixed(2)}</p>
                     <p className="text-[10px] text-gray-500 uppercase">View Details</p>
                   </div>
                 </div>
@@ -961,8 +1003,15 @@ const UBiteApp = () => {
                      <h3 className="text-xl font-bold text-white mb-4">Order #{selectedHistoryOrder.id}</h3>
                      <div className="space-y-2 text-sm text-gray-300">
                         <p><b>Date:</b> {new Date(selectedHistoryOrder.date).toLocaleString([], {year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
-                        <p><b>Customer:</b> {selectedHistoryOrder.userDetails.nickname} ({selectedHistoryOrder.userDetails.whatsapp})</p>
-                        <p><b>Restaurant:</b> {selectedHistoryOrder.restaurant.toUpperCase()}</p>
+                        <p className="flex items-center">
+                          <b>Customer:</b> <span className="ml-1">{selectedHistoryOrder.userDetails?.nickname || 'Unknown'} ({selectedHistoryOrder.userDetails?.whatsapp || 'Unknown'})</span>
+                          {selectedHistoryOrder.userDetails?.whatsapp && (
+                            <a href={getWhatsAppLink(selectedHistoryOrder.userDetails.whatsapp)} target="_blank" rel="noopener noreferrer" className="ml-2 bg-green-600 hover:bg-green-500 text-white text-[10px] px-2 py-1 rounded flex items-center">
+                              <MessageCircle size={12} className="mr-1"/> Chat
+                            </a>
+                          )}
+                        </p>
+                        <p><b>Restaurant:</b> {(selectedHistoryOrder.restaurant || '').toUpperCase()}</p>
                      </div>
                      <div className="bg-gray-900 p-3 rounded mt-4 mb-4 border border-gray-700">
                        <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Order Summary</p>
@@ -983,7 +1032,7 @@ const UBiteApp = () => {
                      <div className="flex justify-between border-t border-gray-600 pt-3 flex-col space-y-1">
                         <div className="flex justify-between text-sm"><span className="text-gray-400">Food Total</span><span className="font-bold text-white">RM {(selectedHistoryOrder.foodTotal || 0).toFixed(2)}</span></div>
                         <div className="flex justify-between text-sm"><span className="text-gray-400">Delivery Fee</span><span className="font-bold text-white">RM {(selectedHistoryOrder.deliveryFee || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between text-base mt-2 pt-2 border-t border-gray-700"><span className="text-gray-200 font-bold">Grand Total</span><span className="text-lg font-bold text-green-400">RM {selectedHistoryOrder.total.toFixed(2)}</span></div>
+                        <div className="flex justify-between text-base mt-2 pt-2 border-t border-gray-700"><span className="text-gray-200 font-bold">Grand Total</span><span className="text-lg font-bold text-green-400">RM {(selectedHistoryOrder.total || 0).toFixed(2)}</span></div>
                      </div>
                      {(selectedHistoryOrder.paymentReceipt || selectedHistoryOrder.mcdReceipt) && (
                         <div className="mt-4 pt-4 border-t border-gray-700 flex space-x-2">
@@ -1060,8 +1109,9 @@ const UBiteApp = () => {
                <button onClick={downloadUsers} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md flex justify-center items-center"><Download size={18} className="mr-2"/> Download Users CSV</button>
                <div className="space-y-3">
                  {userStats.map((u, i) => (
-                   <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-sm">
-                     <div className="flex justify-between border-b border-gray-700 pb-2 mb-2">
+                   <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-sm relative">
+                     <button onClick={() => hideUserFromAdmin(u.phone)} className="absolute top-3 right-3 text-gray-500 hover:text-red-500" title="Hide User"><X size={16}/></button>
+                     <div className="flex justify-between border-b border-gray-700 pb-2 mb-2 pr-6">
                        <span className="font-bold text-white"><User size={14} className="inline mr-1"/>{u.nickname}</span>
                        <span className="text-gray-400">{u.phone}</span>
                      </div>
@@ -1125,7 +1175,11 @@ const UBiteApp = () => {
               <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Your Information</h2>
               <div className="space-y-4">
                 <div><label className="block text-sm font-bold text-gray-700 mb-1">Nickname</label><div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden"><span className="p-3 bg-gray-50 text-gray-500"><User size={18}/></span><input type="text" className="w-full p-3 outline-none" value={userDetails.nickname} readOnly /></div></div>
-                <div><label className="block text-sm font-bold text-gray-700 mb-1">WhatsApp Number</label><div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden"><span className="p-3 bg-gray-50 text-gray-500"><Phone size={18}/></span><input type="tel" className="w-full p-3 outline-none" value={userDetails.whatsapp} readOnly /></div></div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">WhatsApp Number</label>
+                  <div className="flex bg-white rounded-lg border border-gray-300 overflow-hidden"><span className="p-3 bg-gray-50 text-gray-500"><Phone size={18}/></span><input type="tel" className="w-full p-3 outline-none" value={userDetails.whatsapp} readOnly /></div>
+                  {!currentUser && <p className="text-xs text-red-500 mt-1 ml-1 font-medium">* Must be an active WhatsApp number</p>}
+                </div>
               </div>
               <button onClick={() => setView('restaurant')} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-md mt-6">Continue to Menu</button>
               <button onClick={() => setView('welcome')} className="w-full py-3 text-gray-500 underline">Back</button>
