@@ -136,6 +136,31 @@ const SUSHI_MENU = [
 
 const SUSHI_CATEGORIES = ['Gunkan', 'Inari', 'Temaki', 'Maki Mono', 'Nigiri', 'Shashimi', 'Ala Carte'];
 
+// Extracted renderLogo function outside the component to prevent unmounting/flickering
+const renderLogo = (logoError, setLogoError) => (
+  <div className="relative mb-4">
+    {!logoError ? (
+      <img 
+        src="UBite%20Logo%20trasparent.jpg" 
+        alt="UBite Logo" 
+        className="w-56 h-auto mx-auto drop-shadow-xl"
+        onError={() => setLogoError(true)}
+      />
+    ) : (
+      <div className="flex flex-col items-center">
+         <div className="bg-gradient-to-br from-red-600 to-orange-500 p-5 rounded-full text-white shadow-xl mb-3 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-30"></div>
+            <div className="relative flex items-center justify-center space-x-1">
+              <Bike size={44} strokeWidth={2.5}/>
+              <Utensils size={20} strokeWidth={2.5} className="absolute -right-2 -bottom-2 bg-red-600 rounded-full p-1 border-2 border-white"/>
+            </div>
+         </div>
+         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">UBite</h1>
+      </div>
+    )}
+  </div>
+);
+
 const UBiteApp = () => {
   const [tailwindLoaded, setTailwindLoaded] = useState(false);
 
@@ -183,6 +208,8 @@ const UBiteApp = () => {
   const [isShopOpen, setIsShopOpen] = useState(true);
   const [isShopLoaded, setIsShopLoaded] = useState(false);
   const [hiddenUsers, setHiddenUsers] = useState([]);
+  const [logoError, setLogoError] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // Global flag to prevent spam clicking
   
   const [view, setView] = useState('loading');
   const [adminTab, setAdminTab] = useState('live'); 
@@ -342,6 +369,9 @@ const UBiteApp = () => {
   // --- LOGIC & CUSTOM AUTH ---
   const handleSignUp = async () => {
     if (!authUsername || !authPassword || !authPhone) return showToast("Please fill all fields");
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
     const cleanUsername = authUsername.trim();
     const userData = { username: cleanUsername, phone: authPhone, password: authPassword };
     
@@ -349,11 +379,19 @@ const UBiteApp = () => {
       if (db && user) {
         const userRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_users'), cleanUsername.toLowerCase());
         const existing = await getDoc(userRef);
-        if (existing.exists()) return showToast("Username already taken! Try another.");
+        if (existing.exists()) {
+          showToast("Username already taken! Try another.");
+          setIsProcessing(false);
+          return;
+        }
         await setDoc(userRef, userData);
       } else {
         const localUsers = JSON.parse(localStorage.getItem('ubite_users_db') || '{}');
-        if (localUsers[cleanUsername.toLowerCase()]) return showToast("Username already taken! Try another.");
+        if (localUsers[cleanUsername.toLowerCase()]) {
+          showToast("Username already taken! Try another.");
+          setIsProcessing(false);
+          return;
+        }
         localUsers[cleanUsername.toLowerCase()] = userData;
         localStorage.setItem('ubite_users_db', JSON.stringify(localUsers));
       }
@@ -366,19 +404,24 @@ const UBiteApp = () => {
     } catch (error) {
       console.error("Sign up error:", error);
       showToast("Network error. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleLogin = async () => {
     if (!authUsername || !authPassword) return showToast("Please fill all fields");
+    if (isProcessing) return;
+
+    setIsProcessing(true);
     const cleanUsername = authUsername.trim();
 
     try {
       if (db && user) {
         const userRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_users'), cleanUsername.toLowerCase());
         const existing = await getDoc(userRef);
-        if (!existing.exists()) return showToast("User not found. Please Sign Up first.");
-        if (existing.data().password !== authPassword) return showToast("Incorrect password.");
+        if (!existing.exists()) { showToast("User not found. Please Sign Up first."); setIsProcessing(false); return; }
+        if (existing.data().password !== authPassword) { showToast("Incorrect password."); setIsProcessing(false); return; }
         
         const userData = existing.data();
         setCurrentUser(userData);
@@ -390,8 +433,8 @@ const UBiteApp = () => {
       } else {
         const localUsers = JSON.parse(localStorage.getItem('ubite_users_db') || '{}');
         const existingUser = localUsers[cleanUsername.toLowerCase()];
-        if (!existingUser) return showToast("User not found. Please Sign Up first.");
-        if (existingUser.password !== authPassword) return showToast("Incorrect password.");
+        if (!existingUser) { showToast("User not found. Please Sign Up first."); setIsProcessing(false); return; }
+        if (existingUser.password !== authPassword) { showToast("Incorrect password."); setIsProcessing(false); return; }
         
         setCurrentUser(existingUser);
         setUserDetails({ nickname: existingUser.username, whatsapp: existingUser.phone });
@@ -403,6 +446,8 @@ const UBiteApp = () => {
     } catch (error) {
       console.error("Login error:", error);
       showToast("Network error. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -413,13 +458,17 @@ const UBiteApp = () => {
   };
 
   const handleFeedbackSubmit = async () => {
-    if(!feedbackText.trim()) return;
+    if(!feedbackText.trim()) return showToast("Please type something first!");
+    if (isProcessing) return;
+    setIsProcessing(true);
+
     const newFeedback = {
       date: new Date().toISOString(),
       user: currentUser ? currentUser.username : userDetails.nickname,
       phone: currentUser ? currentUser.phone : userDetails.whatsapp,
       text: feedbackText
     };
+
     try {
       if (db && user) {
         await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_feedback'), Date.now().toString()), newFeedback);
@@ -428,7 +477,10 @@ const UBiteApp = () => {
       setFeedbackText('');
       showToast('Thank you for your feedback!');
     } catch(e) {
+      console.error(e);
       showToast('Failed to submit feedback.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -487,6 +539,9 @@ const UBiteApp = () => {
     if (restaurant === 'mcd' && mcdOrderType === 'self' && !mcdReceipt) { showToast("Please upload McD screenshot!"); return; }
     if (restaurant === 'foodtruck' && !ftOrderText.trim()) { showToast("Please type your food truck order!"); return; }
 
+    if (isProcessing) return;
+    setIsProcessing(true);
+
     const deliveryFee = calculateDeliveryFee();
     const foodTotal = restaurant === 'sushi' ? calculateSushiFoodTotal() : 0; 
     const now = new Date();
@@ -514,6 +569,8 @@ const UBiteApp = () => {
       notifyPhone(`🚨 NEW ORDER: #${orderId}\nCustomer: ${finalUserDetails.nickname}\nTotal: RM${newOrder.total.toFixed(2)}`);
     } catch (error) {
       showToast("Failed to submit order. Check connection.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -623,34 +680,10 @@ const UBiteApp = () => {
 
   if (!tailwindLoaded || view === 'loading') return <div className="flex items-center justify-center h-screen bg-gray-50 font-bold">Loading UBite...</div>;
 
-  // --- BRANDING COMPONENT ---
-  const BrandLogo = () => (
-    <div className="relative mb-4">
-      {/* Uploaded Logo Link - Assuming it is placed in the public folder as ubite-logo.jpg */}
-      <img src="/ubite-logo.jpg" alt="UBite Logo" className="w-56 h-auto mx-auto drop-shadow-xl"
-        onError={(e) => {
-          e.target.style.display='none';
-          document.getElementById('fallback-logo').style.display='flex';
-        }}
-      />
-      {/* Fallback Logo if the image file is missing */}
-      <div id="fallback-logo" className="hidden flex-col items-center">
-         <div className="bg-gradient-to-br from-red-600 to-orange-500 p-5 rounded-full text-white shadow-xl mb-3 relative overflow-hidden">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-30"></div>
-            <div className="relative flex items-center justify-center space-x-1">
-              <Bike size={44} strokeWidth={2.5}/>
-              <Utensils size={20} strokeWidth={2.5} className="absolute -right-2 -bottom-2 bg-red-600 rounded-full p-1 border-2 border-white"/>
-            </div>
-         </div>
-         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">UBite</h1>
-      </div>
-    </div>
-  );
-
   // --- UI COMPONENTS ---
   const renderAuth = () => (
     <div className="p-8 flex flex-col items-center justify-center min-h-[80vh] animate-fadeIn">
-      <BrandLogo />
+      {renderLogo(logoError, setLogoError)}
       <p className="text-red-600 font-bold mb-8 text-sm uppercase tracking-wider">Sign in to track orders</p>
       
       <div className="w-full space-y-4">
@@ -662,7 +695,13 @@ const UBiteApp = () => {
           </div>
         )}
         <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full p-4 rounded-xl border border-gray-300 outline-none focus:ring-2 ring-orange-500 shadow-sm"/>
-        <button onClick={authMode === 'login' ? handleLogin : handleSignUp} className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold py-4 rounded-xl shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1 transition-all">{authMode === 'login' ? 'Login' : 'Create Account'}</button>
+        <button 
+          onClick={authMode === 'login' ? handleLogin : handleSignUp} 
+          disabled={isProcessing}
+          className={`w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold py-4 rounded-xl shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1 transition-all ${isProcessing ? 'opacity-50' : ''}`}
+        >
+          {isProcessing ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Create Account')}
+        </button>
       </div>
 
       <p className="mt-8 text-sm text-gray-600 font-medium">
@@ -684,7 +723,7 @@ const UBiteApp = () => {
       )}
       
       <div onClick={() => secretTap >= 4 ? (setShowSecretModal(true), setSecretTap(0)) : setSecretTap(s => s + 1)}>
-        <BrandLogo />
+        {renderLogo(logoError, setLogoError)}
       </div>
 
       <div className="text-center space-y-1">
@@ -920,8 +959,14 @@ const UBiteApp = () => {
             {paymentReceipt ? <div className="text-green-600 font-extrabold"><CheckCircle size={32} className="mx-auto mb-2"/> Receipt Attached</div> : <div className="text-blue-600 font-extrabold"><Upload size={32} className="mx-auto mb-2"/> Tap to attach receipt</div>}
           </label>
         </div>
-        <button onClick={handleCheckout} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-extrabold py-5 rounded-xl shadow-lg border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all text-lg">Confirm & Send Order</button>
-        <button onClick={() => setView(restaurant)} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold bg-white rounded-xl shadow-sm border border-gray-200">Back</button>
+        <button 
+          onClick={handleCheckout} 
+          disabled={isProcessing}
+          className={`w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-extrabold py-5 rounded-xl shadow-lg border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all text-lg ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {isProcessing ? 'Processing...' : 'Confirm & Send Order'}
+        </button>
+        <button onClick={() => setView(restaurant)} className="w-full py-4 text-gray-600 hover:text-red-600 transition font-bold bg-white rounded-xl shadow-sm border border-gray-200 mt-4">Back</button>
       </div>
     );
   };
@@ -964,18 +1009,24 @@ const UBiteApp = () => {
             <h3 className="font-extrabold text-yellow-900 mb-2">Ordered on the McD App?</h3>
             <p className="text-xs font-medium text-yellow-800 mb-5">Tap below ONLY when your McD app says the food is ready for pickup.</p>
             <button 
-              disabled={current.mcdNotified}
+              disabled={current.mcdNotified || isProcessing}
               onClick={async () => {
-                 showToast("Notification sent! Rider is heading to the counter.");
-                 notifyPhone(`🏃 URGENT:\nMcD User ${current.userDetails?.nickname} says food is ready for pickup!`);
-                 if (db && user) {
-                   await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(current.id)), { mcdNotified: true });
-                 } else {
-                   setOrders(orders.map(o => o.id === current.id ? { ...o, mcdNotified: true } : o));
+                 if (isProcessing) return;
+                 setIsProcessing(true);
+                 try {
+                   showToast("Notification sent! Rider is heading to the counter.");
+                   notifyPhone(`🏃 URGENT:\nMcD User ${current.userDetails?.nickname} says food is ready for pickup!`);
+                   if (db && user) {
+                     await updateDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'ubite_orders'), String(current.id)), { mcdNotified: true });
+                   } else {
+                     setOrders(orders.map(o => o.id === current.id ? { ...o, mcdNotified: true } : o));
+                   }
+                 } finally {
+                   setIsProcessing(false);
                  }
               }}
-              className={`w-full ${current.mcdNotified ? 'bg-gray-300 cursor-not-allowed text-gray-500 border-b-0 translate-y-1' : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1'} font-extrabold py-5 rounded-xl shadow transition-all flex justify-center items-center text-lg`}
-            ><Bike className="mr-2" /> {current.mcdNotified ? 'Rider Notified!' : 'Notify Rider: Ready!'}</button>
+              className={`w-full ${current.mcdNotified ? 'bg-gray-300 cursor-not-allowed text-gray-500 border-b-0 translate-y-1' : 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black border-b-4 border-yellow-600 active:border-b-0 active:translate-y-1'} ${isProcessing ? 'opacity-50' : ''} font-extrabold py-5 rounded-xl shadow transition-all flex justify-center items-center text-lg`}
+            ><Bike className="mr-2" /> {current.mcdNotified ? 'Rider Notified!' : (isProcessing ? 'Sending...' : 'Notify Rider: Ready!')}</button>
           </div>
         )}
 
@@ -1304,6 +1355,46 @@ const UBiteApp = () => {
           <a href="https://wa.me/601120365995?text=%5BUBite%5D%2C%20I%20have%20a%20question" target="_blank" rel="noopener noreferrer" className="absolute bottom-10 right-6 bg-gradient-to-tr from-green-500 to-green-400 text-white p-4 rounded-full shadow-[0_10px_25px_-5px_rgba(34,197,94,0.5)] hover:scale-110 active:scale-95 transition-all z-[150]"><MessageCircle size={28} className="animate-pulse" /></a>
         )}
         {toastMessage && <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[90%] bg-gray-900/95 backdrop-blur-md text-white font-extrabold tracking-wide text-center py-4 px-5 rounded-2xl shadow-2xl z-[200] text-sm animate-fadeIn border border-gray-700">{toastMessage}</div>}
+        
+        {/* Feedback Modal */}
+        {showFeedbackModal && (
+          <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center p-4">
+             <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl animate-fadeIn">
+                <h3 className="font-bold text-lg mb-2 text-gray-800 tracking-tight">Your Feedback</h3>
+                <p className="text-xs text-gray-500 mb-4">Let us know how we did or what we can improve!</p>
+                <textarea rows="4" className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-blue-500" placeholder="Type your feedback here..." value={feedbackText} onChange={e => setFeedbackText(e.target.value)}></textarea>
+                <div className="flex space-x-2">
+                  <button onClick={() => { setShowFeedbackModal(false); setFeedbackText(''); }} className="flex-1 p-3 bg-gray-100 rounded-lg font-bold text-gray-700">Cancel</button>
+                  <button 
+                    onClick={handleFeedbackSubmit} 
+                    disabled={isProcessing}
+                    className={`flex-1 p-3 bg-blue-600 rounded-lg font-bold text-white ${isProcessing ? 'opacity-50' : ''}`}
+                  >
+                    {isProcessing ? 'Wait...' : 'Submit'}
+                  </button>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* Secret Login Modal */}
+        {showSecretModal && (
+          <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center p-4">
+             <div className="bg-white p-6 rounded-xl w-full max-w-xs shadow-2xl animate-fadeIn">
+                <h3 className="font-bold text-lg mb-4 text-gray-800 tracking-tight">Staff Login</h3>
+                <input type="text" placeholder="Username" value={staffUsername} onChange={e => setStaffUsername(e.target.value)} className="w-full p-3 border rounded-lg mb-3 outline-none focus:ring-2 ring-red-500" />
+                <input type="password" placeholder="Password" value={staffPassword} onChange={e => setStaffPassword(e.target.value)} className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 ring-red-500" />
+                <div className="flex space-x-2">
+                  <button onClick={() => (setShowSecretModal(false), setStaffUsername(''), setStaffPassword(''))} className="flex-1 p-3 bg-gray-100 rounded-lg font-bold text-gray-700">Cancel</button>
+                  <button onClick={() => {
+                     if (staffUsername === 'CTL' && staffPassword === '0516') { setView('admin'); setAdminTab('live'); setShowSecretModal(false); setStaffUsername(''); setStaffPassword(''); }
+                     else if (staffUsername === 'sushi' && staffPassword === 'sushi') { setView('seller'); setSellerTab('live'); setShowSecretModal(false); setStaffUsername(''); setStaffPassword(''); }
+                     else { showToast("Invalid Credentials"); }
+                  }} className="flex-1 p-3 bg-red-600 rounded-lg font-bold text-white">Enter</button>
+                </div>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );
